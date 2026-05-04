@@ -1,0 +1,71 @@
+{
+  "acid techno": {
+    "explanation": "These tracks are curated representative examples. Spotify is used only to find playable catalog matches, not to decide the recommendations.",
+    "representative_tracks": [
+      {"title": "Acperience 1", "artist": "Hardfloor", "sources": ["Discogs", "Ishkur"]},
+      {"title": "Acid Phase", "artist": "Emmanuel Top", "sources": ["Discogs", "Ishkur"]},
+      {"title": "London Acid City", "artist": "Lochi", "sources": ["Discogs"]},
+      {"title": "One Night in Hackney", "artist": "Dynamo City", "sources": ["Discogs"]},
+      {"title": "Higher State of Consciousness", "artist": "Josh Wink", "sources": ["Discogs", "AllMusic"]}
+    ],
+    "representative_artists": ["Hardfloor", "Emmanuel Top", "Chris Liberator", "D.A.V.E. The Drummer", "Josh Wink"],
+    "sources": ["Discogs", "Ishkur", "AllMusic"]
+  },
+  "uk garage": {
+    "explanation": "These tracks are curated representative examples for UK garage and 2-step garage. Spotify is used only for playable display.",
+    "representative_tracks": [
+      {"title": "RipGroove", "artist": "Double 99", "sources": ["Discogs", "AllMusic"]},
+      {"title": "Gabriel", "artist": "Roy Davis Jr.", "sources": ["Discogs", "AllMusic"]},
+      {"title": "Flowers", "artist": "Sweet Female Attitude", "sources": ["Discogs"]},
+      {"title": "Sorry! (I Didn't Know)", "artist": "Monsta Boy", "sources": ["Discogs"]},
+      {"title": "Do You Really Like It?", "artist": "DJ Pied Piper & The Masters Of Ceremonies", "sources": ["Discogs"]}
+    ],
+    "representative_artists": ["MJ Cole", "Wookie", "Artful Dodger", "Double 99", "Sweet Female Attitude"],
+    "sources": ["Discogs", "AllMusic", "Every Noise"]
+  },
+  "house music": {
+    "explanation": "These tracks are curated representative examples for foundational house music. Spotify matching is validated by title and artist.",
+    "representative_tracks": [
+      {"title": "Move Your Body", "artist": "Marshall Jefferson", "sources": ["Discogs", "AllMusic"]},
+      {"title": "Can You Feel It", "artist": "Mr. Fingers", "sources": ["Discogs", "AllMusic"]},
+      {"title": "Your Love", "artist": "Frankie Knuckles", "sources": ["Discogs", "AllMusic"]},
+      {"title": "Promised Land", "artist": "Joe Smooth", "sources": ["Discogs", "AllMusic"]},
+      {"title": "Follow Me", "artist": "Aly-Us", "sources": ["Discogs"]}
+    ],
+    "representative_artists": ["Frankie Knuckles", "Larry Heard", "Marshall Jefferson", "Kerri Chandler", "Masters At Work"],
+    "sources": ["Discogs", "AllMusic", "Ishkur"]
+  },
+  "house": {
+    "alias_for": "house music"
+  },
+  "melodic techno": {
+    "explanation": "These tracks are curated representative examples for modern melodic techno and melodic house/techno crossover.",
+    "representative_tracks": [
+      {"title": "Consciousness", "artist": "Anyma", "sources": ["Discogs", "Resident Advisor"]},
+      {"title": "Dance With Me", "artist": "Kevin de Vries", "sources": ["Discogs", "Resident Advisor"]},
+      {"title": "The Future Is Unknown", "artist": "Massano", "sources": ["Discogs"]},
+      {"title": "Nova", "artist": "Tale Of Us", "sources": ["Discogs"]},
+      {"title": "Walking Away", "artist": "Mind Against", "sources": ["Discogs"]}
+    ],
+    "representative_artists": ["Tale Of Us", "Anyma", "Kevin de Vries", "Mind Against", "Massano"],
+    "sources": ["Discogs", "Resident Advisor", "MusicBrainz"]
+  },
+  "drum and bass": {
+    "explanation": "These tracks are curated representative examples for drum and bass and jungle. Spotify matching is validated by title and artist.",
+    "representative_tracks": [
+      {"title": "Inner City Life", "artist": "Goldie", "sources": ["Discogs", "AllMusic"]},
+      {"title": "Atlantis (I Need You)", "artist": "LTJ Bukem", "sources": ["Discogs"]},
+      {"title": "Brown Paper Bag", "artist": "Roni Size", "sources": ["Discogs", "AllMusic"]},
+      {"title": "Valley of the Shadows", "artist": "Origin Unknown", "sources": ["Discogs"]},
+      {"title": "Super Sharp Shooter", "artist": "DJ Zinc", "sources": ["Discogs"]}
+    ],
+    "representative_artists": ["Goldie", "LTJ Bukem", "Roni Size", "Origin Unknown", "DJ Zinc"],
+    "sources": ["Discogs", "AllMusic", "MusicBrainz"]
+  },
+  "dnb": {
+    "alias_for": "drum and bass"
+  },
+  "drum & bass": {
+    "alias_for": "drum and bass"
+  }
+}

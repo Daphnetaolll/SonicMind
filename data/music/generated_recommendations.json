@@ -1,0 +1,116 @@
+{
+  "experimental electronic music": {
+    "explanation": "Generated from trusted music-domain search results. Spotify is used only after exact title and artist validation.",
+    "representative_tracks": [
+      {
+        "title": "garde Electronic Music",
+        "artist": "ThisGuyFrritz",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/lists/Experimental-Avant-garde-Electronic-Music/147289?srsltid=AfmBOooDRtsnOwwkoJxSv16QgfcEI2lZ9DbDs3mRXcxCAJ6gIGxZBgBX"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.58
+      }
+    ],
+    "sources": [
+      "Discogs"
+    ]
+  },
+  "electronic music": {
+    "explanation": "Generated from trusted music-domain search results. Spotify is used only after exact title and artist validation.",
+    "representative_tracks": [
+      {
+        "title": "Chill Out",
+        "artist": "The KLF",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/lists/100-Best-Electronic-Music-Albums-Of-All-Time/377354?srsltid=AfmBOoqBO6mcKlFNF0Rq9DIX7H4KDe01AiaD3beUPeB84ubhIDFGleFl"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.92
+      },
+      {
+        "title": "Lifeforms",
+        "artist": "The Future Sound Of London",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/lists/100-Best-Electronic-Music-Albums-Of-All-Time/377354?srsltid=AfmBOoqBO6mcKlFNF0Rq9DIX7H4KDe01AiaD3beUPeB84ubhIDFGleFl"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.92
+      },
+      {
+        "title": "100 Best Electronic Music Albums Of All Time",
+        "artist": "Ren822",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/lists/100-Best-Electronic-Music-Albums-Of-All-Time/377354?srsltid=AfmBOoqBO6mcKlFNF0Rq9DIX7H4KDe01AiaD3beUPeB84ubhIDFGleFl"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.76
+      },
+      {
+        "title": "4. Music From And Inspired",
+        "artist": "The",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/lists/100-Best-Electronic-Music-Albums-Of-All-Time/377354?srsltid=AfmBOoqBO6mcKlFNF0Rq9DIX7H4KDe01AiaD3beUPeB84ubhIDFGleFl"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.76
+      },
+      {
+        "title": "Most Collected Electro Music",
+        "artist": "New Order - Blue Monday",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/style/electro?srsltid=AfmBOooLvxxbCObAVAHG_T86AsJs6dZie42lElg_bqaML-R2Z_beZCTz"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.74
+      },
+      {
+        "title": "thinking sounds. We have done that",
+        "artist": "choosing ten albums per year that represent key moments in the world o",
+        "sources": [
+          "DJ Mag"
+        ],
+        "source_urls": [
+          "https://djmag.com/longreads/dj-mag%E2%80%99s-definitive-electronic-albums-decade"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.58
+      },
+      {
+        "title": "Mixmag.net",
+        "artist": "00s electro tracks",
+        "sources": [
+          "Mixmag"
+        ],
+        "source_urls": [
+          "https://mixmag.net/feature/the-20-best-pre-00s-electro-tracks"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.5
+      }
+    ],
+    "sources": [
+      "DJ Mag",
+      "Discogs",
+      "Mixmag"
+    ]
+  }
+}

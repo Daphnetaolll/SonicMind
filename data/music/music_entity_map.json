@@ -1,0 +1,217 @@
+{
+  "Afterlife": {
+    "canonical_type": "label",
+    "genres": ["melodic techno", "melodic house"],
+    "related_entities": [
+      {"name": "Tale Of Us", "type": "artist", "relationship": "founders / associated artists"},
+      {"name": "Anyma", "type": "artist", "relationship": "associated artist"},
+      {"name": "MRAK", "type": "artist", "relationship": "associated artist"},
+      {"name": "Kevin de Vries", "type": "artist", "relationship": "associated artist"},
+      {"name": "Mind Against", "type": "artist", "relationship": "associated artist"},
+      {"name": "Massano", "type": "artist", "relationship": "associated artist"},
+      {"name": "Cassian", "type": "artist", "relationship": "associated artist"},
+      {"name": "CamelPhat", "type": "artist", "relationship": "associated artist"}
+    ],
+    "sources": ["Discogs", "Resident Advisor", "MusicBrainz"]
+  },
+  "Anjunadeep": {
+    "canonical_type": "label",
+    "genres": ["deep house", "melodic house", "melodic techno"],
+    "related_entities": [
+      {"name": "Ben Bohmer", "type": "artist", "relationship": "associated artist"},
+      {"name": "Lane 8", "type": "artist", "relationship": "associated artist"},
+      {"name": "Yotto", "type": "artist", "relationship": "associated artist"},
+      {"name": "Marsh", "type": "artist", "relationship": "associated artist"}
+    ],
+    "sources": ["Discogs", "MusicBrainz", "Resident Advisor"]
+  },
+  "Diynamic": {
+    "canonical_type": "label",
+    "genres": ["melodic house", "melodic techno", "tech house"],
+    "related_entities": [
+      {"name": "Solomun", "type": "artist", "relationship": "founder / associated artist"},
+      {"name": "Adriatique", "type": "artist", "relationship": "associated artist"},
+      {"name": "HOSH", "type": "artist", "relationship": "associated artist"},
+      {"name": "Kollektiv Turmstrasse", "type": "artist", "relationship": "associated artist"}
+    ],
+    "sources": ["Discogs", "Resident Advisor", "MusicBrainz"]
+  },
+  "Innervisions": {
+    "canonical_type": "label",
+    "genres": ["deep house", "melodic house", "melodic techno"],
+    "related_entities": [
+      {"name": "Dixon", "type": "artist", "relationship": "founder / associated artist"},
+      {"name": "Ame", "type": "artist", "relationship": "founders / associated artists"},
+      {"name": "Trikk", "type": "artist", "relationship": "associated artist"},
+      {"name": "Marcus Worgull", "type": "artist", "relationship": "associated artist"}
+    ],
+    "sources": ["Discogs", "Resident Advisor", "MusicBrainz"]
+  },
+  "Stil vor Talent": {
+    "canonical_type": "label",
+    "genres": ["melodic techno", "melodic house", "deep house"],
+    "related_entities": [
+      {"name": "Oliver Koletzki", "type": "artist", "relationship": "founder / associated artist"},
+      {"name": "Township Rebellion", "type": "artist", "relationship": "associated artist"},
+      {"name": "Hidden Empire", "type": "artist", "relationship": "associated artist"}
+    ],
+    "sources": ["Discogs", "Resident Advisor", "MusicBrainz"]
+  },
+  "Defected Records": {
+    "canonical_type": "label",
+    "genres": ["house", "house music", "deep house"],
+    "related_entities": [
+      {"name": "Bob Sinclar", "type": "artist", "relationship": "associated artist"},
+      {"name": "Kings of Tomorrow", "type": "artist", "relationship": "associated artist"},
+      {"name": "Purple Disco Machine", "type": "artist", "relationship": "associated artist"},
+      {"name": "Sam Divine", "type": "artist", "relationship": "associated artist"}
+    ],
+    "sources": ["Discogs", "MusicBrainz", "AllMusic"]
+  },
+  "Strictly Rhythm": {
+    "canonical_type": "label",
+    "genres": ["house", "house music", "garage house"],
+    "related_entities": [
+      {"name": "Roger Sanchez", "type": "artist", "relationship": "associated artist"},
+      {"name": "Armand Van Helden", "type": "artist", "relationship": "associated artist"},
+      {"name": "Barbara Tucker", "type": "artist", "relationship": "associated artist"}
+    ],
+    "sources": ["Discogs", "MusicBrainz", "AllMusic"]
+  },
+  "Trax Records": {
+    "canonical_type": "label",
+    "genres": ["house", "house music", "chicago house", "acid house"],
+    "related_entities": [
+      {"name": "Frankie Knuckles", "type": "artist", "relationship": "associated artist"},
+      {"name": "Marshall Jefferson", "type": "artist", "relationship": "associated artist"},
+      {"name": "Adonis", "type": "artist", "relationship": "associated artist"}
+    ],
+    "sources": ["Discogs", "MusicBrainz", "AllMusic"]
+  },
+  "Nervous Records": {
+    "canonical_type": "label",
+    "genres": ["house", "house music", "deep house", "garage house"],
+    "related_entities": [
+      {"name": "Masters At Work", "type": "artist", "relationship": "associated artist"},
+      {"name": "Kerri Chandler", "type": "artist", "relationship": "associated artist"},
+      {"name": "Todd Terry", "type": "artist", "relationship": "associated artist"}
+    ],
+    "sources": ["Discogs", "MusicBrainz", "AllMusic"]
+  },
+  "Glasgow Underground": {
+    "canonical_type": "label",
+    "genres": ["house", "house music", "deep house"],
+    "related_entities": [
+      {"name": "Kevin McKay", "type": "artist", "relationship": "founder / associated artist"},
+      {"name": "Illyus & Barrientos", "type": "artist", "relationship": "associated artist"},
+      {"name": "Romanthony", "type": "artist", "relationship": "associated artist"}
+    ],
+    "sources": ["Discogs", "MusicBrainz"]
+  },
+  "Tale Of Us": {
+    "canonical_type": "artist",
+    "genres": ["melodic techno", "melodic house"],
+    "related_entities": [
+      {"name": "Afterlife", "type": "label", "relationship": "label / project"},
+      {"name": "Anyma", "type": "artist", "relationship": "member-related solo project"},
+      {"name": "MRAK", "type": "artist", "relationship": "member-related solo project"}
+    ],
+    "sources": ["MusicBrainz", "Discogs", "Resident Advisor"]
+  },
+  "Anyma": {
+    "canonical_type": "artist",
+    "genres": ["melodic techno", "melodic house"],
+    "related_entities": [
+      {"name": "Afterlife", "type": "label", "relationship": "associated label"},
+      {"name": "Tale Of Us", "type": "artist", "relationship": "member-related project"},
+      {"name": "Consciousness", "type": "track", "relationship": "representative track"}
+    ],
+    "sources": ["MusicBrainz", "Discogs", "Resident Advisor"]
+  },
+  "Kevin de Vries": {
+    "canonical_type": "artist",
+    "genres": ["melodic techno"],
+    "related_entities": [
+      {"name": "Afterlife", "type": "label", "relationship": "associated label"}
+    ],
+    "sources": ["MusicBrainz", "Discogs", "Resident Advisor"]
+  },
+  "Massano": {
+    "canonical_type": "artist",
+    "genres": ["melodic techno"],
+    "related_entities": [
+      {"name": "Afterlife", "type": "label", "relationship": "associated label"}
+    ],
+    "sources": ["MusicBrainz", "Discogs", "Resident Advisor"]
+  },
+  "Frankie Knuckles": {
+    "canonical_type": "artist",
+    "genres": ["house", "house music", "chicago house"],
+    "related_entities": [
+      {"name": "Trax Records", "type": "label", "relationship": "associated label"}
+    ],
+    "sources": ["MusicBrainz", "Discogs", "AllMusic"]
+  },
+  "Kerri Chandler": {
+    "canonical_type": "artist",
+    "genres": ["house", "deep house", "garage house"],
+    "related_entities": [
+      {"name": "Nervous Records", "type": "label", "relationship": "associated label"}
+    ],
+    "sources": ["MusicBrainz", "Discogs", "AllMusic"]
+  },
+  "Armand Van Helden": {
+    "canonical_type": "artist",
+    "genres": ["house", "house music", "garage house"],
+    "related_entities": [
+      {"name": "Strictly Rhythm", "type": "label", "relationship": "associated label"}
+    ],
+    "sources": ["MusicBrainz", "Discogs", "AllMusic"]
+  },
+  "melodic techno": {
+    "canonical_type": "genre",
+    "genres": ["melodic techno"],
+    "related_entities": [
+      {"name": "Afterlife", "type": "label", "relationship": "important label"},
+      {"name": "Anjunadeep", "type": "label", "relationship": "related melodic house / techno label"},
+      {"name": "Diynamic", "type": "label", "relationship": "important label"},
+      {"name": "Innervisions", "type": "label", "relationship": "important label"},
+      {"name": "Stil vor Talent", "type": "label", "relationship": "important label"},
+      {"name": "Tale Of Us", "type": "artist", "relationship": "representative artist"},
+      {"name": "Anyma", "type": "artist", "relationship": "representative artist"},
+      {"name": "Kevin de Vries", "type": "artist", "relationship": "representative artist"},
+      {"name": "Massano", "type": "artist", "relationship": "representative artist"}
+    ],
+    "sources": ["Ishkur", "Every Noise", "Discogs", "Resident Advisor"]
+  },
+  "house music": {
+    "canonical_type": "genre",
+    "genres": ["house", "house music"],
+    "related_entities": [
+      {"name": "Defected Records", "type": "label", "relationship": "important label"},
+      {"name": "Strictly Rhythm", "type": "label", "relationship": "important label"},
+      {"name": "Trax Records", "type": "label", "relationship": "important label"},
+      {"name": "Nervous Records", "type": "label", "relationship": "important label"},
+      {"name": "Glasgow Underground", "type": "label", "relationship": "important label"},
+      {"name": "Frankie Knuckles", "type": "artist", "relationship": "representative artist"},
+      {"name": "Kerri Chandler", "type": "artist", "relationship": "representative artist"},
+      {"name": "Armand Van Helden", "type": "artist", "relationship": "representative artist"}
+    ],
+    "sources": ["Ishkur", "Every Noise", "Discogs", "AllMusic"]
+  },
+  "house": {
+    "canonical_type": "genre",
+    "genres": ["house", "house music"],
+    "related_entities": [
+      {"name": "Defected Records", "type": "label", "relationship": "important label"},
+      {"name": "Strictly Rhythm", "type": "label", "relationship": "important label"},
+      {"name": "Trax Records", "type": "label", "relationship": "important label"},
+      {"name": "Nervous Records", "type": "label", "relationship": "important label"},
+      {"name": "Glasgow Underground", "type": "label", "relationship": "important label"},
+      {"name": "Frankie Knuckles", "type": "artist", "relationship": "representative artist"},
+      {"name": "Kerri Chandler", "type": "artist", "relationship": "representative artist"},
+      {"name": "Armand Van Helden", "type": "artist", "relationship": "representative artist"}
+    ],
+    "sources": ["Ishkur", "Every Noise", "Discogs", "AllMusic"]
+  }
+}
