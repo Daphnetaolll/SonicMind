@@ -24,7 +24,9 @@ def main() -> None:
             )
             tables = cur.fetchall()
 
-    print(f"Initialized database: {get_database_url()}")
+    # Never print DATABASE_URL; Render logs are visible to project collaborators and the URL contains credentials.
+    get_database_url()
+    print("Initialized database from configured DATABASE_URL.")
     print("Tables:")
     for row in tables:
         print(f"- {row['table_name']}")
