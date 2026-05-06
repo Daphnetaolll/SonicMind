@@ -13,12 +13,14 @@ def retrieve_local_evidence(*args, **kwargs):
 
 
 def retrieve_site_evidence(*args, **kwargs):
+    # Trusted-site retrieval is lazy-loaded so importing the package does not initialize network helpers.
     from src.retrievers.site_retriever import retrieve_site_evidence as _retrieve_site_evidence
 
     return _retrieve_site_evidence(*args, **kwargs)
 
 
 def retrieve_web_evidence(*args, **kwargs):
+    # General web retrieval stays behind a lazy wrapper for the same lightweight import path.
     from src.retrievers.web_retriever import retrieve_web_evidence as _retrieve_web_evidence
 
     return _retrieve_web_evidence(*args, **kwargs)

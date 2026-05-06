@@ -94,3 +94,37 @@ def get_subscription_balance(
         )
         row = cur.fetchone()
     return int(row["balance"])
+
+
+def count_charged_questions(
+    conn: Any,
+    *,
+    user_id: str,
+    period_start: object,
+    period_end: object,
+    charge_types: tuple[str, ...] | None = None,
+) -> int:
+    # Count successful charged answers in a specific UTC or billing period for plan enforcement.
+    params: list[Any] = [user_id, period_start, period_end]
+    charge_clause = ""
+    if charge_types:
+        placeholders = ", ".join(["%s"] * len(charge_types))
+        charge_clause = f"AND charge_type IN ({placeholders})"
+        params.extend(charge_types)
+
+    with conn.cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT COUNT(*) AS used_count
+            FROM question_logs
+            WHERE user_id = %s
+              AND status = 'succeeded'
+              AND charged = TRUE
+              AND COALESCE(completed_at, created_at) >= %s
+              AND COALESCE(completed_at, created_at) < %s
+              {charge_clause}
+            """,
+            tuple(params),
+        )
+        row = cur.fetchone()
+    return int(row["used_count"])

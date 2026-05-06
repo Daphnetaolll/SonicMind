@@ -1,29 +1,22 @@
 from __future__ import annotations
 
-import subprocess
-import sys
-from pathlib import Path
 from urllib.parse import quote
 
 import streamlit as st
 
-from src.rag_pipeline import answer_question
-from src.services.admin_service import is_admin
-from src.services.auth_service import authenticate_user, get_user, register_user
-from src.services.question_service import (
-    mark_question_failed,
-    mark_question_succeeded,
-    start_question,
+from backend.services.account_service import AccountValidationError, create_account, sign_in_user
+from backend.services.chat_service import answer_user_question
+from backend.services.error_service import safe_error_message
+from backend.services.knowledge_base_service import (
+    count_local_source_docs,
+    knowledge_base_ready,
+    rebuild_knowledge_base,
+    save_uploaded_files,
 )
-from src.services.quota_service import get_quota_status, record_successful_question_usage
+from src.services.admin_service import is_admin
+from src.services.auth_service import get_user
+from src.services.quota_service import get_quota_status
 from src.services.subscription_service import activate_monthly_subscription, get_subscription_status
-
-
-ROOT_DIR = Path(__file__).resolve().parent
-RAW_DIR = ROOT_DIR / "data" / "raw"
-CHUNKS_PATH = ROOT_DIR / "data" / "processed" / "chunks.jsonl"
-META_PATH = ROOT_DIR / "data" / "processed" / "chunk_meta.jsonl"
-INDEX_PATH = ROOT_DIR / "data" / "index" / "faiss.index"
 
 
 def init_session_state() -> None:
@@ -31,71 +24,6 @@ def init_session_state() -> None:
     st.session_state.setdefault("last_result", None)
     st.session_state.setdefault("current_user_id", None)
     st.session_state.setdefault("question_success_message", None)
-
-
-def safe_error_message(exc: Exception, *, fallback: str) -> str:
-    message = str(exc)
-    lowered = message.lower()
-
-    # Keep provider, SQL, and stack-level details out of the UI while still giving users a next step.
-    if "llm request failed" in lowered or "missing llm_api_key" in lowered or "openai_api_key" in lowered:
-        return "The answer service is unavailable right now. Check the LLM configuration and try again."
-    if "search api failed" in lowered or "tavily" in lowered or "brave" in lowered:
-        return "External search is unavailable right now. Please try again in a moment."
-    if "spotify" in lowered:
-        return "Spotify results could not be loaded right now. The answer may still be available."
-    if "database" in lowered or "psycopg" in lowered or "postgres" in lowered:
-        return "Account or quota storage is unavailable right now. Please try again shortly."
-    return fallback
-
-
-def save_uploaded_files(uploaded_files: list[st.runtime.uploaded_file_manager.UploadedFile]) -> list[Path]:
-    RAW_DIR.mkdir(parents=True, exist_ok=True)
-    saved_paths: list[Path] = []
-
-    for uploaded in uploaded_files:
-        suffix = Path(uploaded.name).suffix.lower()
-        if suffix not in {".txt", ".md"}:
-            raise ValueError(f"Unsupported file type: {uploaded.name}. Only .txt and .md are allowed.")
-
-        target = RAW_DIR / Path(uploaded.name).name
-        target.write_bytes(uploaded.getbuffer())
-        saved_paths.append(target)
-
-    return saved_paths
-
-
-def rebuild_knowledge_base() -> None:
-    commands = [
-        [sys.executable, "scripts/preprocess.py"],
-        [sys.executable, "scripts/embed_corpus.py"],
-        [sys.executable, "scripts/build_index.py"],
-    ]
-
-    for cmd in commands:
-        result = subprocess.run(
-            cmd,
-            cwd=ROOT_DIR,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode != 0:
-            raise RuntimeError(
-                f"Command failed: {' '.join(cmd)}\n"
-                f"stdout:\n{result.stdout}\n"
-                f"stderr:\n{result.stderr}"
-            )
-
-
-def knowledge_base_ready() -> bool:
-    return CHUNKS_PATH.exists() and META_PATH.exists() and INDEX_PATH.exists()
-
-
-def count_local_source_docs() -> int:
-    if not RAW_DIR.exists():
-        return 0
-    return len(list(RAW_DIR.glob("*.txt"))) + len(list(RAW_DIR.glob("*.md")))
 
 
 def logout() -> None:
@@ -147,11 +75,11 @@ def render_auth_panel() -> None:
             password = st.text_input("Password", type="password", key="sign_in_password")
             submitted = st.form_submit_button("Sign In", use_container_width=True)
             if submitted:
-                # Validate empty credentials before hitting the database so the auth form feels intentional.
-                if not email.strip() or not password:
-                    st.error("Email and password are required.")
-                elif not (user := authenticate_user(email, password)):
-                    st.error("Invalid email or password.")
+                try:
+                    # Account validation now lives in backend/services so FastAPI can reuse it.
+                    user = sign_in_user(email, password)
+                except AccountValidationError as exc:
+                    st.error(str(exc))
                 else:
                     st.session_state.current_user_id = user.id
                     st.session_state.chat_history = []
@@ -167,23 +95,22 @@ def render_auth_panel() -> None:
             confirm_password = st.text_input("Confirm password", type="password", key="register_confirm_password")
             submitted = st.form_submit_button("Create Account", use_container_width=True)
             if submitted:
-                if not email.strip() or not password:
-                    st.error("Email and password are required.")
-                elif password != confirm_password:
-                    st.error("Passwords do not match.")
-                elif len(password) < 8:
-                    st.error("Password must be at least 8 characters.")
+                try:
+                    # The Streamlit form stays thin; reusable registration rules live in backend/services.
+                    user = create_account(
+                        email=email,
+                        password=password,
+                        confirm_password=confirm_password,
+                        display_name=display_name or None,
+                    )
+                except AccountValidationError as exc:
+                    st.error(str(exc))
                 else:
-                    try:
-                        user = register_user(email, password, display_name=display_name or None)
-                    except ValueError as exc:
-                        st.error(str(exc))
-                    else:
-                        st.session_state.current_user_id = user.id
-                        st.session_state.chat_history = []
-                        st.session_state.last_result = None
-                        st.session_state.question_success_message = None
-                        st.rerun()
+                    st.session_state.current_user_id = user.id
+                    st.session_state.chat_history = []
+                    st.session_state.last_result = None
+                    st.session_state.question_success_message = None
+                    st.rerun()
 
 
 def render_subscription_panel(current_user) -> None:
@@ -428,27 +355,20 @@ def main() -> None:
             elif not quota or not quota.allowed:
                 st.warning("You have no remaining questions in your current quota. Start a subscription to continue.")
             else:
-                question_log_id = start_question(current_user.id, question.strip())
                 try:
                     st.session_state.last_result = None
                     st.session_state.question_success_message = None
                     with st.spinner("Retrieving context and generating an answer..."):
-                        result = answer_question(
-                            question.strip(),
+                        # Backend chat service preserves the old log -> answer -> charge lifecycle.
+                        chat_response = answer_user_question(
+                            user_id=current_user.id,
+                            question=question.strip(),
+                            quota=quota,
                             chat_history=st.session_state.chat_history,
                             topk=topk,
                             max_history_turns=max_history_turns,
                         )
-                    charge_type = quota.charge_type
-                    remaining_quota = record_successful_question_usage(
-                        user_id=current_user.id,
-                        question_log_id=question_log_id,
-                    )
-                    mark_question_succeeded(
-                        question_log_id,
-                        result.answer,
-                        charge_type=charge_type,
-                    )
+                    result = chat_response.result
                     st.session_state.chat_history = [
                         {"user": turn.user, "assistant": turn.assistant}
                         for turn in result.updated_chat_history
@@ -456,11 +376,10 @@ def main() -> None:
                     st.session_state.last_result = result
                     # Rerun after charging so all quota counters render from the same fresh database state.
                     st.session_state.question_success_message = (
-                        f"Remaining questions after this answer: {remaining_quota.remaining}"
+                        f"Remaining questions after this answer: {chat_response.remaining_quota.remaining}"
                     )
                     st.rerun()
                 except Exception as exc:  # pragma: no cover - UI surface
-                    mark_question_failed(question_log_id, str(exc))
                     st.error(safe_error_message(exc, fallback="The question could not be answered right now."))
 
         if st.session_state.question_success_message and not hide_result_this_run:

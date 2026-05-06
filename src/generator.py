@@ -17,6 +17,7 @@ DEFAULT_SYSTEM_PROMPT = (
     "You are an assistant that answers questions using the provided evidence. "
     "Prefer local knowledge-base evidence first, then trusted sites, then broader web evidence. "
     "Do not invent facts that are not supported by evidence. "
+    "Answer in the same language as the user's question; for mixed-language questions, respond naturally in the dominant language. "
     "If the evidence is incomplete or conflicting, say so clearly. "
     "Keep answers concise, accurate, and grounded in the provided sources."
 )
@@ -112,6 +113,10 @@ def build_synthesis_prompt(
     history_section = ""
     if history_block:
         history_section = f"Recent conversation:\n{history_block}\n\n"
+    if re.search(r"[\u4e00-\u9fff]", query):
+        language_instruction = "The user used Chinese characters; answer in Chinese unless the question is clearly mixed-language."
+    else:
+        language_instruction = "Answer in the same language as the user's question."
 
     reasons = "\n".join(f"- {reason}" for reason in assessment.reasons)
     music_section = ""
@@ -148,6 +153,11 @@ def build_synthesis_prompt(
             + ("\n".join(track_lines) if track_lines else "n/a")
             + "\n\n"
         )
+        if plan.question_type == "playlist_discovery":
+            music_section += (
+                "Playlist-style instruction: present the answer as an ordered listening path or DJ-set arc, "
+                "starting softer when appropriate and ending with higher-energy picks when the user asks for progression.\n\n"
+            )
 
     return (
         "Produce a grounded answer from the supplied evidence.\n\n"
@@ -159,7 +169,8 @@ def build_synthesis_prompt(
         "3. Use structured music findings when they are provided. If candidate tracks are listed, the written answer must refer to the same tracks that Spotify will display.\n"
         "4. If evidence conflicts or is incomplete, certainty must be PARTIAL or UNCERTAIN.\n"
         "5. Keep the answer concise and practical.\n"
-        "6. citations must contain evidence numbers that support the answer.\n\n"
+        "6. citations must contain evidence numbers that support the answer.\n"
+        f"7. {language_instruction}\n\n"
         f"Assessment label: {assessment.label}\n"
         f"Assessment reasons:\n{reasons}\n\n"
         f"{history_section}"
@@ -214,10 +225,18 @@ def _looks_like_unhelpful_answer(answer: str) -> bool:
 
 def _structured_music_answer(query: str, music_routing: MusicRoutingResult) -> str:
     # Fallback answer keeps text output aligned with the same music candidates used for Spotify cards.
+    use_chinese = bool(re.search(r"[\u4e00-\u9fff]", query))
     understanding = music_routing.query_understanding
     track_candidates = music_routing.recommendation_plan.candidate_tracks[:6]
     if track_candidates:
         names = ", ".join(f"{track.artist} - {track.title}" for track in track_candidates)
+        if use_chinese:
+            answer = f"针对 {understanding.genre_hint or '这种风格'}，我找到的最强曲目候选是 {names}。"
+            details = []
+            for track in track_candidates[:4]:
+                sources = ", ".join(track.source_names[:3]) or track.source_type
+                details.append(f"{track.artist} - {track.title} 由 {sources} 支持。")
+            return answer + " " + " ".join(details)
         if music_routing.recommendation_plan.question_type == "trending_tracks":
             answer = f"For {understanding.genre_hint or 'this style'}, the strongest current track candidates I found are {names}."
         else:
@@ -234,6 +253,26 @@ def _structured_music_answer(query: str, music_routing: MusicRoutingResult) -> s
         return ""
 
     names = ", ".join(entity.name for entity in entities)
+    if use_chinese:
+        if understanding.intent == "label_recommendation":
+            answer = f"针对 {understanding.genre_hint or '这种风格'}，我找到的主要厂牌候选是 {names}。"
+        elif understanding.intent == "artist_recommendation":
+            answer = f"针对 {understanding.genre_hint or '这种风格'}，我找到的主要艺人候选是 {names}。"
+        elif understanding.intent == "track_recommendation":
+            answer = f"针对 {understanding.genre_hint or '这种风格'}，我找到的主要曲目候选是 {names}。"
+        else:
+            answer = f"我找到的相关音乐实体包括 {names}。"
+
+        details: list[str] = []
+        for entity in entities[:4]:
+            related = ", ".join(item.name for item in entity.related_entities[:4])
+            sources = ", ".join(entity.sources[:3]) or "可信证据"
+            detail = f"{entity.name} 由 {sources} 支持"
+            if related:
+                detail += f"；相关艺人或实体包括 {related}"
+            details.append(detail + "。")
+        return answer + " " + " ".join(details)
+
     if understanding.intent == "label_recommendation":
         answer = f"For {understanding.genre_hint or 'this style'}, the strongest label candidates are {names}."
     elif understanding.intent == "artist_recommendation":
@@ -261,6 +300,7 @@ def call_chat_completion(
     system_prompt: str,
     user_prompt: str,
     response_format: dict[str, str] | None = None,
+    max_tokens: int | None = None,
 ) -> str:
     # Use a raw OpenAI-compatible chat completion request to avoid adding a heavier SDK dependency.
     payload = {
@@ -273,6 +313,8 @@ def call_chat_completion(
     }
     if response_format:
         payload["response_format"] = response_format
+    if max_tokens:
+        payload["max_tokens"] = max_tokens
 
     req = request.Request(
         url=f"{config.base_url}/chat/completions",
@@ -331,6 +373,7 @@ def synthesize_answer(
     config: LLMConfig | None = None,
     system_prompt: str = DEFAULT_SYSTEM_PROMPT,
     music_routing: MusicRoutingResult | None = None,
+    max_answer_tokens: int | None = None,
 ) -> AnswerSynthesis:
     if not evidence:
         return AnswerSynthesis(
@@ -354,6 +397,7 @@ def synthesize_answer(
         system_prompt=system_prompt,
         user_prompt=user_prompt,
         response_format={"type": "json_object"},
+        max_tokens=max_answer_tokens,
     )
 
     parsed = _extract_json_object(raw)

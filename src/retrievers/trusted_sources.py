@@ -9,6 +9,7 @@ AccessMode = Literal["official_api", "search_api"]
 
 @dataclass(frozen=True)
 class TrustedSource:
+    # TrustedSource records both source purpose and access mode so routing can explain provenance.
     key: str
     name: str
     purpose: str
@@ -147,6 +148,7 @@ TRUSTED_MUSIC_SOURCES: tuple[TrustedSource, ...] = (
 
 
 def all_trusted_domains() -> set[str]:
+    # Flatten configured domains for web-retriever filtering and search API allow lists.
     domains: set[str] = set()
     for source in TRUSTED_MUSIC_SOURCES:
         domains.update(source.domains)
@@ -154,10 +156,12 @@ def all_trusted_domains() -> set[str]:
 
 
 def search_api_sources() -> tuple[TrustedSource, ...]:
+    # Search-backed sources are safe to query through the external provider when local evidence is partial.
     return tuple(source for source in TRUSTED_MUSIC_SOURCES if source.access_mode == "search_api")
 
 
 def source_for_domain(host: str) -> TrustedSource | None:
+    # Resolve subdomains back to their configured source record for evidence labels and trust metadata.
     clean_host = host.lower().removeprefix("www.")
     for source in TRUSTED_MUSIC_SOURCES:
         if any(clean_host == domain or clean_host.endswith(f".{domain}") for domain in source.domains):

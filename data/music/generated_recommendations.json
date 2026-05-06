@@ -112,5 +112,1003 @@
       "Discogs",
       "Mixmag"
     ]
+  },
+  "techno": {
+    "explanation": "Generated from trusted music-domain search results. Spotify is used only after exact title and artist validation.",
+    "representative_tracks": [
+      {
+        "title": "Mixmag.net",
+        "artist": "20 of the best techno tracks released this decade",
+        "sources": [
+          "Mixmag"
+        ],
+        "source_urls": [
+          "https://mixmag.net/feature/20-best-techno-tracks-2011-2019"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 1.7
+      },
+      {
+        "title": "Alleys Of Your Mind",
+        "artist": "Cybotron",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/lists/Techno-I-The-First-Wave-in-20-traxx/554501?srsltid=AfmBOorMLZnUGDU4p3aumoK7oqq3JHe9QIM83venjVJQTdUXGvAGR9Tq"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.92
+      },
+      {
+        "title": "Sharevari",
+        "artist": "A Number Of Names",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/lists/Techno-I-The-First-Wave-in-20-traxx/554501?srsltid=AfmBOorMLZnUGDU4p3aumoK7oqq3JHe9QIM83venjVJQTdUXGvAGR9Tq"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.92
+      },
+      {
+        "title": "Cosmic Cars",
+        "artist": "Cybotron",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/lists/Techno-I-The-First-Wave-in-20-traxx/554501?srsltid=AfmBOorMLZnUGDU4p3aumoK7oqq3JHe9QIM83venjVJQTdUXGvAGR9Tq"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.92
+      },
+      {
+        "title": "Techno I The First Wave (in 20 traxx)",
+        "artist": "gaspipe",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/lists/Techno-I-The-First-Wave-in-20-traxx/554501?srsltid=AfmBOorMLZnUGDU4p3aumoK7oqq3JHe9QIM83venjVJQTdUXGvAGR9Tq"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.76
+      },
+      {
+        "title": "Techno (Peak Time",
+        "artist": "Buben",
+        "sources": [
+          "Beatport"
+        ],
+        "source_urls": [
+          "https://www.beatport.com/genre/techno-peak-time-driving/6/tracks?perPage=100&sortBy=publishDate+ASC%2C+releaseId+ASC&page=4&preorders=true&per_page=150&srsltid=AfmBOopTKG-xoSJa_ch1acy1Aea3a_7ZAJqagW3IRm4TsoBjmQIcODSX"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.74
+      },
+      {
+        "title": "Green Velvet",
+        "artist": "Layton Giordani",
+        "sources": [
+          "Traxsource"
+        ],
+        "source_urls": [
+          "https://www.traxsource.com/title/1710520/top-200-techno-of-2021"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.74
+      },
+      {
+        "title": "Beatport",
+        "artist": "Driving) Tracks",
+        "sources": [
+          "Beatport"
+        ],
+        "source_urls": [
+          "https://www.beatport.com/genre/techno-peak-time-driving/6/tracks?perPage=100&sortBy=publishDate+ASC%2C+releaseId+ASC&page=4&preorders=true&per_page=150&srsltid=AfmBOopTKG-xoSJa_ch1acy1Aea3a_7ZAJqagW3IRm4TsoBjmQIcODSX"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.68
+      }
+    ],
+    "sources": [
+      "Beatport",
+      "Discogs",
+      "Mixmag",
+      "Traxsource"
+    ]
+  },
+  "detroit techno": {
+    "explanation": "Generated from trusted music-domain search results. Spotify is used only after exact title and artist validation.",
+    "representative_tracks": [
+      {
+        "title": "Emotions Electric",
+        "artist": "Detroit Definitive",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/master/31736-Various-Retro-Techno-Detroit-Definitive-Emotions-Electric?srsltid=AfmBOooBY-cGUwFDBg1iNl8GSD-xWKMydR7APVdEHshrgq6f7wdyYslO",
+          "https://www.discogs.com/master/31736-Various-Retro-Techno-Detroit-Definitive-Emotions-Electric?srsltid=AfmBOopVEFPZ9hIZPiiKpCbgsfCVNQOx7pSJdXLY-DJyH5NlniJaeEIK"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 1.19
+      },
+      {
+        "title": "The Exotic Sounds Of Gigi Galaxy",
+        "artist": "Gigi Galaxy",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/lists/Detroit-Techno-Top-100/266138?srsltid=AfmBOopI_qNDiyaq1jW9dXmvzingjNONsrUbFkLi_LzDWBEMATYPRCcb"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.92
+      },
+      {
+        "title": "No More Words",
+        "artist": "Carl Craig",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/lists/Detroit-Techno-Top-100/266138?srsltid=AfmBOopI_qNDiyaq1jW9dXmvzingjNONsrUbFkLi_LzDWBEMATYPRCcb"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.92
+      },
+      {
+        "title": "Detroit Techno Records",
+        "artist": "Body Mechanic(43)",
+        "sources": [
+          "Beatport"
+        ],
+        "source_urls": [
+          "https://www.beatport.com/label/detroit-techno-records/116244/tracks?srsltid=AfmBOoo1sElAskTZbmFfkgvo6ht_AITzwYuCGdhAIqk0faXDot3db_Fu"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.74
+      },
+      {
+        "title": "Mixmag.net",
+        "artist": "Detroit techno icons",
+        "sources": [
+          "Mixmag"
+        ],
+        "source_urls": [
+          "https://mixmag.net/feature/celebrating-black-history-detroit-techno-icons"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.68
+      },
+      {
+        "title": "Wire 03, a Bootleg of songs",
+        "artist": "Jeff Mills. Genres",
+        "sources": [
+          "Rate Your Music"
+        ],
+        "source_urls": [
+          "https://rateyourmusic.com/release/unauth/jeff-mills/jeff-mills-wire-03/reviews/1/"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.64
+      },
+      {
+        "title": "Mixmag.net",
+        "artist": "20 of the best techno tracks released this decade",
+        "sources": [
+          "Mixmag"
+        ],
+        "source_urls": [
+          "https://mixmag.net/feature/20-best-techno-tracks-2011-2019"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.5
+      },
+      {
+        "title": "Mixmag.net",
+        "artist": "Listen to Ataxia's 'Techno Punks' playlist",
+        "sources": [
+          "Mixmag"
+        ],
+        "source_urls": [
+          "https://mixmag.net/feature/ataxia-detroit-techno-punks-playlist-interview-album"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.5
+      }
+    ],
+    "sources": [
+      "Beatport",
+      "Discogs",
+      "Mixmag",
+      "Rate Your Music"
+    ]
+  },
+  "chicago house": {
+    "explanation": "Generated from trusted music-domain search results. Spotify is used only after exact title and artist validation.",
+    "representative_tracks": [
+      {
+        "title": "Mixmag.net",
+        "artist": "30 of the best Chicago house tracks",
+        "sources": [
+          "Mixmag"
+        ],
+        "source_urls": [
+          "https://mixmag.net/feature/best-chicago-house-music-tracks-records"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 1.7
+      },
+      {
+        "title": "Mixmag.net",
+        "artist": "20 of the best Paul Johnson tracks",
+        "sources": [
+          "Mixmag"
+        ],
+        "source_urls": [
+          "https://mixmag.net/feature/paul-johnson-best-tracks-chicago-house-classics"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 1.19
+      },
+      {
+        "title": "Jesse Saunders",
+        "artist": "“On And On” (1984)",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/digs/music/essential-chicago-house-tracks/?srsltid=AfmBOoorv-twmnI8R4HT3Du0Nd92Fk5clCzfF2Q2xNfJH8DCfXQ6Ok6u"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.92
+      },
+      {
+        "title": "On And On",
+        "artist": "Jesse Saunders",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/lists/House-Chicago-House-1984-1989/348835?srsltid=AfmBOop9pkkqFaGB_gCVlW1dBsdJxkgkIFxlYpu-x4RSv1XO1bb9ndL2"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.92
+      },
+      {
+        "title": "Funk You Up",
+        "artist": "Jesse Saunders",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/lists/House-Chicago-House-1984-1989/348835?srsltid=AfmBOop9pkkqFaGB_gCVlW1dBsdJxkgkIFxlYpu-x4RSv1XO1bb9ndL2"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.92
+      },
+      {
+        "title": "Chicago House from the year 1986",
+        "artist": "funk",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/lists/Chicago-House-from-the-year-1986/167648?srsltid=AfmBOoqpWEmuEyzczkhGZz439xPQ4KURCiBEHcRyYtsbOpfqrMYS3-jG"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.76
+      },
+      {
+        "title": "Various Arti",
+        "artist": "Original Chicago House Classics",
+        "sources": [
+          "AllMusic"
+        ],
+        "source_urls": [
+          "https://www.allmusic.com/album/original-chicago-house-classics-mw0000456347"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.74
+      },
+      {
+        "title": "Traxsource",
+        "artist": "Soulful Deephouse,classic Chicago House",
+        "sources": [
+          "Traxsource"
+        ],
+        "source_urls": [
+          "https://www.traxsource.com/artist/327628/soulful-deephouse-classic-chicago-house"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.68
+      }
+    ],
+    "sources": [
+      "AllMusic",
+      "Discogs",
+      "Mixmag",
+      "Traxsource"
+    ]
+  },
+  "deep house": {
+    "explanation": "Generated from trusted music-domain search results. Spotify is used only after exact title and artist validation.",
+    "representative_tracks": [
+      {
+        "title": "Waterfalls",
+        "artist": "After Hours",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/lists/Deep-House/13220?srsltid=AfmBOop_vb7bZoGDngfjRdAByART78rudCf_PeTPtj1RQyeBc8aQvinU"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.92
+      },
+      {
+        "title": "DJ Mag",
+        "artist": "January 2026",
+        "sources": [
+          "DJ Mag"
+        ],
+        "source_urls": [
+          "https://djmag.com/features/six-emerging-artists-you-need-hear-january-2026"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.68
+      },
+      {
+        "title": "Mixmag.net",
+        "artist": "30 of the best Chicago house tracks",
+        "sources": [
+          "Mixmag"
+        ],
+        "source_urls": [
+          "https://mixmag.net/feature/best-chicago-house-music-tracks-records"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.68
+      },
+      {
+        "title": "Mixmag.net",
+        "artist": "70 definitive deep house tracks",
+        "sources": [
+          "Mixmag"
+        ],
+        "source_urls": [
+          "https://mixmag.net/read/spotify-playlist-definitive-deep-house-selections-playlists"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.68
+      },
+      {
+        "title": "Mixmag.net",
+        "artist": "15 of the best classic house tracks about love",
+        "sources": [
+          "Mixmag"
+        ],
+        "source_urls": [
+          "https://mixmag.net/feature/15-classic-house-tracks-love"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.68
+      }
+    ],
+    "sources": [
+      "DJ Mag",
+      "Discogs",
+      "Mixmag"
+    ]
+  },
+  "acid house": {
+    "explanation": "Generated from trusted music-domain search results. Spotify is used only after exact title and artist validation.",
+    "representative_tracks": [
+      {
+        "title": "Mixmag.net",
+        "artist": "The history of acid house in 100 tracks",
+        "sources": [
+          "Mixmag"
+        ],
+        "source_urls": [
+          "https://mixmag.net/feature/the-history-of-acid-house-in-100-tracks"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 1.19
+      },
+      {
+        "title": "The House Vocal Mix of this produced",
+        "artist": "Bruce Forrest was the one",
+        "sources": [
+          "Mixmag"
+        ],
+        "source_urls": [
+          "https://mixmag.net/feature/the-history-of-acid-house-in-100-tracks"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 1.015
+      },
+      {
+        "title": "Most Collected Acid House Music",
+        "artist": "Lil Louis* - French Kiss",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/style/acid+house?srsltid=AfmBOor5BpL4jolUrhgocJQwF0wqkSdCAlLMCMk0g8CpO_ZRuoPJwfzE"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.92
+      },
+      {
+        "title": "Warp 10+1 Influences",
+        "artist": "Warp 10+1 InfluencesVarious",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/search/?style_exact=Acid+House&country=UK&srsltid=AfmBOoplFOH2ONKv03D1xjzdrWsv9XdZPhGOScdAryzz-Fj-KXU-fUFA"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.92
+      },
+      {
+        "title": "House Nation",
+        "artist": "House Nation (Remix)The Housemaster Boyz",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/search/?style_exact=Acid+House&country=UK&srsltid=AfmBOoplFOH2ONKv03D1xjzdrWsv9XdZPhGOScdAryzz-Fj-KXU-fUFA"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.92
+      },
+      {
+        "title": "New Beat",
+        "artist": "Acid House Music",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/release/206053-Various-Acid-House-Music-New-Beat?srsltid=AfmBOoroW16UUVdPiN18UV7bfUK-mA7yMowERovm700gm7njXXto-6jA"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.86
+      },
+      {
+        "title": "Acid Tracks",
+        "artist": "Phuture",
+        "sources": [
+          "Beatport"
+        ],
+        "source_urls": [
+          "https://www.beatport.com/chart/essential-classics-acid-house/42254?srsltid=AfmBOorlZYaamaF0a0X8Csfhr4hqlAAAXcvnXOaDf-8FYdpUnABuNpBr"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.74
+      },
+      {
+        "title": "We Are Phuture",
+        "artist": "Phuture",
+        "sources": [
+          "Beatport"
+        ],
+        "source_urls": [
+          "https://www.beatport.com/chart/essential-classics-acid-house/42254?srsltid=AfmBOorlZYaamaF0a0X8Csfhr4hqlAAAXcvnXOaDf-8FYdpUnABuNpBr"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.74
+      }
+    ],
+    "sources": [
+      "Beatport",
+      "Discogs",
+      "Mixmag"
+    ]
+  },
+  "minimal techno": {
+    "explanation": "Generated from trusted music-domain search results. Spotify is used only after exact title and artist validation.",
+    "representative_tracks": [
+      {
+        "title": "Losing Control",
+        "artist": "DBX",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/lists/minimal-techno/296411?srsltid=AfmBOoruLka9RwMlJ0l90FAn856-AvnW4u7YlMtDzFG1D4mI7wQPHNnB"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.92
+      },
+      {
+        "title": "Boa Hodo",
+        "artist": "Time Warp",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/lists/minimal-techno/296411?srsltid=AfmBOoruLka9RwMlJ0l90FAn856-AvnW4u7YlMtDzFG1D4mI7wQPHNnB"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.92
+      },
+      {
+        "title": "Like That",
+        "artist": "Paul Mac",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/lists/minimal-techno/296411?srsltid=AfmBOoruLka9RwMlJ0l90FAn856-AvnW4u7YlMtDzFG1D4mI7wQPHNnB"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.92
+      },
+      {
+        "title": "Minus Orange",
+        "artist": "Richie Hawtin",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/lists/minimal-techno/296411?srsltid=AfmBOoruLka9RwMlJ0l90FAn856-AvnW4u7YlMtDzFG1D4mI7wQPHNnB"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.92
+      },
+      {
+        "title": "Move My Body",
+        "artist": "Acid Jesus",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/lists/Discogs-List-1-Top-100-Minimal-Techno-Tracks/153157?srsltid=AfmBOorOMU10CjbLuEH521NnZ256cyARKzUKHqQNGILY9MT0nzfnXX4L"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.92
+      },
+      {
+        "title": "Plastique Richie Hawtin",
+        "artist": "Plastikman",
+        "sources": [
+          "AllMusic"
+        ],
+        "source_urls": [
+          "https://www.allmusic.com/style/minimal-techno-ma0000004478/songs"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.8
+      },
+      {
+        "title": "s futuristic intent and distilled it, inspired",
+        "artist": "musical influences as diverse as Detroit",
+        "sources": [
+          "DJ Mag"
+        ],
+        "source_urls": [
+          "https://djmag.com/features/how-robert-hoods-minimal-nation-became-defining-work-minimal-techno"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.58
+      },
+      {
+        "title": "Minimal Legacies",
+        "artist": "Nacim Ladj",
+        "sources": [
+          "Beatport"
+        ],
+        "source_urls": [
+          "https://www.beatport.com/artist/knitted/259657?srsltid=AfmBOooojSAnQLASy_cT-L-9UlBiUFWS38huhSfiAPfxbaacQdxgDL1r"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.56
+      }
+    ],
+    "sources": [
+      "AllMusic",
+      "Beatport",
+      "DJ Mag",
+      "Discogs"
+    ]
+  },
+  "ambient electronic music": {
+    "explanation": "Generated from trusted music-domain search results. Spotify is used only after exact title and artist validation.",
+    "representative_tracks": [
+      {
+        "title": "Most Collected Ambient Music",
+        "artist": "Aphex Twin - Selected Ambient Works 85-92",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/style/ambient?srsltid=AfmBOoquSt4FuRc8BKmsr2wFfsQdydK_I3cWWEWS0Qj3i9ShWI2pDcsv"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.74
+      },
+      {
+        "title": "Ambient 1 (Music For Airports)",
+        "artist": "Brian Eno",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/master/6265-Brian-Eno-Ambient-1-Music-For-Airports?srsltid=AfmBOoqnHDoSEUDy11nNT_ieVRe9U7etfVDIAqLQRxncsnOWeq6xDVQY"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.68
+      },
+      {
+        "title": "Ambiant Otaku",
+        "artist": "Tetsu Inoue",
+        "sources": [
+          "Rate Your Music"
+        ],
+        "source_urls": [
+          "https://rateyourmusic.com/list/acknowledge101/best_of_ambient_new_age/"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.62
+      },
+      {
+        "title": "✢ Ambient Essentials ✢ 850+ albums ranked",
+        "artist": "Alva Noto",
+        "sources": [
+          "Rate Your Music"
+        ],
+        "source_urls": [
+          "https://rateyourmusic.com/list/wilczur/%E2%9C%A2-ambient-essentials-%E2%9C%A2-850-albums-ranked/"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.62
+      }
+    ],
+    "sources": [
+      "Discogs",
+      "Rate Your Music"
+    ]
+  },
+  "garage house": {
+    "explanation": "Generated from trusted music-domain search results. Spotify is used only after exact title and artist validation.",
+    "representative_tracks": [
+      {
+        "title": "Garage House Artists",
+        "artist": "Blaze",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/style/garage+house?srsltid=AfmBOopl83Ny0fcUsZc9zJMQ_z9i4V_CA0S5zDeA7AHaXcjrpd3p5-Lw"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.92
+      },
+      {
+        "title": "Sounds 4 Da City",
+        "artist": "Babs Presents",
+        "sources": [
+          "Traxsource"
+        ],
+        "source_urls": [
+          "https://www.traxsource.com/genre/29/garage"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.56
+      },
+      {
+        "title": "London",
+        "artist": "Deepmore",
+        "sources": [
+          "Traxsource"
+        ],
+        "source_urls": [
+          "https://www.traxsource.com/genre/29/garage"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.56
+      },
+      {
+        "title": "Traxsource",
+        "artist": "The Early Years",
+        "sources": [
+          "Traxsource"
+        ],
+        "source_urls": [
+          "https://www.traxsource.com/title/1699598/classic-garage-vol-1-the-early-years"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.5
+      },
+      {
+        "title": "Mixmag.net",
+        "artist": "50 UK garage classics",
+        "sources": [
+          "Mixmag"
+        ],
+        "source_urls": [
+          "https://mixmag.net/read/spotify-playlist-50-uk-garage-classics-playlists"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.5
+      },
+      {
+        "title": "April 24th on Traxsource",
+        "artist": "UK Garage Essentials",
+        "sources": [
+          "Traxsource"
+        ],
+        "source_urls": [
+          "https://www.traxsource.com/title/2778759/april-24th"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.5
+      }
+    ],
+    "sources": [
+      "Discogs",
+      "Mixmag",
+      "Traxsource"
+    ]
+  },
+  "progressive house": {
+    "explanation": "Generated from trusted music-domain search results. Spotify is used only after exact title and artist validation.",
+    "representative_tracks": [
+      {
+        "title": "Progressive House Artists",
+        "artist": "Sasha",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/style/progressive+house?srsltid=AfmBOooHXaRCgzjRzahSJynwCSdb0l_k7UDCAt01DwJejXpMVzvLlWtA"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.92
+      },
+      {
+        "title": "Progressive House Vol. 1",
+        "artist": "DJ Collection",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/release/6864389-Various-DJ-Collection-Progressive-House-Vol-1?srsltid=AfmBOoqCjoyCJN5AjjgSooOFFKLG-Qa8aGB7HNzXVp41fZaPNqiRQRB2"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.86
+      },
+      {
+        "title": "Track listing",
+        "artist": "1 Caravan to the Temple of Amon",
+        "sources": [
+          "Rate Your Music"
+        ],
+        "source_urls": [
+          "https://rateyourmusic.com/release/album/cj_art/archives_lp/"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.8
+      },
+      {
+        "title": "Music genre",
+        "artist": "Festival Progressive House",
+        "sources": [
+          "Rate Your Music"
+        ],
+        "source_urls": [
+          "https://rateyourmusic.com/genre/festival-progressive-house/"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.74
+      },
+      {
+        "title": "Third Member",
+        "artist": "Damien Hall",
+        "sources": [
+          "Traxsource"
+        ],
+        "source_urls": [
+          "https://www.traxsource.com/artist/1706/third-member"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.74
+      },
+      {
+        "title": "Mixmag.net",
+        "artist": "90s progressive house tracks",
+        "sources": [
+          "Mixmag"
+        ],
+        "source_urls": [
+          "https://mixmag.net/feature/10-best-mid-90s-progressive-house-tracks"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.68
+      },
+      {
+        "title": "Beatport",
+        "artist": "Silk Digital Pres. Progressive House Essentials 04",
+        "sources": [
+          "Beatport"
+        ],
+        "source_urls": [
+          "https://www.beatport.com/release/silk-digital-pres-progressive-house-essentials-04/1378034?srsltid=AfmBOoqHnVsjwHDQgHk-_oeDG2Ep4z-ihF24edpn4sRvX0RsD6geAKVR"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.68
+      },
+      {
+        "title": "the subgenre defined",
+        "artist": "an upwards drive for euphoria without forfeiting its robust foundation",
+        "sources": [
+          "Mixmag"
+        ],
+        "source_urls": [
+          "https://mixmag.net/feature/10-best-mid-90s-progressive-house-tracks"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.58
+      }
+    ],
+    "sources": [
+      "Beatport",
+      "Discogs",
+      "Mixmag",
+      "Rate Your Music",
+      "Traxsource"
+    ]
+  },
+  "the role of club culture in electronic music": {
+    "explanation": "Generated from trusted music-domain search results. Spotify is used only after exact title and artist validation.",
+    "representative_tracks": [
+      {
+        "title": "Sacred Rhythm Music And Club Culture",
+        "artist": "Evolution For Good",
+        "sources": [
+          "Discogs"
+        ],
+        "source_urls": [
+          "https://www.discogs.com/release/27663276-Evolution-For-Good-Sacred-Rhythm-Music-And-Club-Culture-Foundation-Presents-Evolution-For-Good-A-Son?srsltid=AfmBOoo9vmc-LIVFfNSc1BcNGVi9GIAT4hRZp8XVHJ2FOCjYgeIdG-29"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.68
+      },
+      {
+        "title": "Mixmag.net",
+        "artist": "The Best Tracks Of The Year 2020",
+        "sources": [
+          "Mixmag"
+        ],
+        "source_urls": [
+          "https://mixmag.net/feature/the-best-tracks-of-the-year-2020"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.5
+      },
+      {
+        "title": "Mixmag.net",
+        "artist": "Why Shygirl is reshaping classic club sounds",
+        "sources": [
+          "Mixmag"
+        ],
+        "source_urls": [
+          "https://mixmag.net/feature/shygirl-club-shy-dance-music-interview-cover-feature"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.5
+      },
+      {
+        "title": "DJ Mag",
+        "artist": "How the British icon influenced club culture",
+        "sources": [
+          "DJ Mag"
+        ],
+        "source_urls": [
+          "https://djmag.com/features/george-michael-how-british-icon-influenced-club-culture"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.5
+      },
+      {
+        "title": "DJ Mag",
+        "artist": "11 essential books about electronic music",
+        "sources": [
+          "DJ Mag"
+        ],
+        "source_urls": [
+          "https://djmag.com/longreads/11-essential-new-books-about-electronic-music"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.5
+      },
+      {
+        "title": "Mixmag.net",
+        "artist": "How sounds from the Global South stopped club culture stagnating",
+        "sources": [
+          "Mixmag"
+        ],
+        "source_urls": [
+          "https://mixmag.net/feature/no-more-4x4-electronic-sounds-global-south-club-culture-gqom-reggaeton-baile-funk"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.5
+      },
+      {
+        "title": "s dominant electronic subgenre had ended up",
+        "artist": "the end of the 2000s. This desire for new sounds",
+        "sources": [
+          "Mixmag"
+        ],
+        "source_urls": [
+          "https://mixmag.net/feature/no-more-4x4-electronic-sounds-global-south-club-culture-gqom-reggaeton-baile-funk"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.4
+      },
+      {
+        "title": "coupled with the musical democratisation ushered in",
+        "artist": "the rise of the internet",
+        "sources": [
+          "Mixmag"
+        ],
+        "source_urls": [
+          "https://mixmag.net/feature/no-more-4x4-electronic-sounds-global-south-club-culture-gqom-reggaeton-baile-funk"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.4
+      }
+    ],
+    "sources": [
+      "DJ Mag",
+      "Discogs",
+      "Mixmag"
+    ]
+  },
+  "the importance of the warehouse in house music": {
+    "explanation": "Generated from trusted music-domain search results. Spotify is used only after exact title and artist validation.",
+    "representative_tracks": [
+      {
+        "title": "Kamil Van Derson",
+        "artist": "Warehouse Original Mix",
+        "sources": [
+          "Beatport"
+        ],
+        "source_urls": [
+          "https://www.beatport.com/track/warehouse/20395526?srsltid=AfmBOoquogjpVlsoUx3-2IkRhdV2YRNxyQjHVJLs5YGMYWs8LpV2v8fv"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.5
+      }
+    ],
+    "sources": [
+      "Beatport"
+    ]
+  },
+  "melodic house": {
+    "explanation": "Generated from trusted music-domain search results. Spotify is used only after exact title and artist validation.",
+    "representative_tracks": [
+      {
+        "title": "Beatport",
+        "artist": "Melodic House & Techno",
+        "sources": [
+          "Beatport"
+        ],
+        "source_urls": [
+          "https://www.beatport.com/chart/best-sellers-2022-melodic-house-techno/756931?srsltid=AfmBOoq_hpeyxHP8V_jlgD-9NQl5HV_TMqcrWb_49QuaXqGlrqP0wpJd"
+        ],
+        "discovery_method": "trusted_search",
+        "score": 0.68
+      }
+    ],
+    "sources": [
+      "Beatport"
+    ]
   }
 }

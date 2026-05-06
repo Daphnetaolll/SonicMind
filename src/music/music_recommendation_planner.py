@@ -51,6 +51,8 @@ def _question_type(query: str, understanding: QueryUnderstandingResult) -> Recom
     # Map query intent to the recommendation strategy that should feed both text and Spotify cards.
     if not understanding.needs_spotify:
         return "none"
+    if understanding.intent == "playlist_discovery":
+        return "playlist_discovery"
     if _is_trending_query(query) and understanding.spotify_display_target in {"tracks", "representative_tracks", "optional_representative_tracks"}:
         return "trending_tracks"
     if understanding.spotify_display_target == "tracks":
@@ -100,6 +102,12 @@ def _source_queries(query: str, understanding: QueryUnderstandingResult, questio
             f'"{genre}" best tracks artists',
             f'"{genre}" essential tracks',
             f'"{genre}" top songs tracks',
+        ]
+    if question_type == "playlist_discovery":
+        return [
+            f'"{genre}" DJ set tracklist essential tracks',
+            f'"{genre}" playlist tracks artists',
+            f'"{genre}" mood playlist electronic tracks',
         ]
     if question_type == "representative_tracks":
         return [

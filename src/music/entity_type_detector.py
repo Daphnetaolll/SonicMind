@@ -18,6 +18,7 @@ TYPE_MARKERS = {
 
 
 def _evidence_type_votes(name: str, evidence: list[EvidenceItem]) -> Counter:
+    # Count nearby type markers in retrieved evidence to resolve ambiguous music entity mentions.
     votes: Counter = Counter()
     lowered_name = name.lower()
     for item in evidence:
@@ -36,6 +37,7 @@ def resolve_music_entity(
     evidence: list[EvidenceItem],
     genre_hint: str | None = None,
 ) -> ResolvedMusicEntity:
+    # Blend curated metadata, query hints, and evidence votes into one resolved entity type.
     possible: list[PossibleEntityType] = []
     record = get_entity_record(mention.name)
 
@@ -71,4 +73,3 @@ def resolve_music_entity(
         related_entities=get_related_entities(mention.name),
         sources=sources,
     )
-

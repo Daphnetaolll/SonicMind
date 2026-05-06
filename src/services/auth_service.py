@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import secrets
 from dataclasses import dataclass
+from datetime import datetime
 from uuid import uuid4
 
 from psycopg.errors import UniqueViolation
@@ -22,6 +23,25 @@ class AuthUser:
     id: str
     email: str
     display_name: str | None
+    plan: str = "free"
+    subscription_status: str = "active"
+    billing_period_start: datetime | None = None
+    billing_period_end: datetime | None = None
+    extra_question_credits: int = 0
+
+
+def _row_to_auth_user(row: dict) -> AuthUser:
+    # Keep auth return objects consistent as plan fields are added to the database.
+    return AuthUser(
+        id=row["id"],
+        email=row["email"],
+        display_name=row["display_name"],
+        plan=row.get("plan") or "free",
+        subscription_status=row.get("subscription_status") or "active",
+        billing_period_start=row.get("billing_period_start"),
+        billing_period_end=row.get("billing_period_end"),
+        extra_question_credits=int(row.get("extra_question_credits") or 0),
+    )
 
 
 def _hash_password(password: str) -> str:
@@ -76,7 +96,7 @@ def register_user(email: str, password: str, display_name: str | None = None) ->
             conn.rollback()
             raise ValueError("Email already exists.") from exc
 
-    return AuthUser(id=row["id"], email=row["email"], display_name=row["display_name"])
+    return _row_to_auth_user(row)
 
 
 def authenticate_user(email: str, password: str) -> AuthUser | None:
@@ -89,7 +109,7 @@ def authenticate_user(email: str, password: str) -> AuthUser | None:
         return None
     if not _verify_password(password, row["password_hash"]):
         return None
-    return AuthUser(id=row["id"], email=row["email"], display_name=row["display_name"])
+    return _row_to_auth_user(row)
 
 
 def get_user(user_id: str) -> AuthUser | None:
@@ -98,4 +118,4 @@ def get_user(user_id: str) -> AuthUser | None:
         row = user_repository.get_user_by_id(conn, user_id)
     if not row or row["deleted_at"] is not None:
         return None
-    return AuthUser(id=row["id"], email=row["email"], display_name=row["display_name"])
+    return _row_to_auth_user(row)

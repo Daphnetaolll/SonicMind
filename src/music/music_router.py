@@ -12,12 +12,26 @@ def build_music_response(
     query: str,
     answer: str,
     evidence: list[EvidenceItem],
+    *,
+    spotify_limit: int = 8,
+    playlist_style: bool = False,
 ) -> MusicRoutingResult:
+    # Build the shared music understanding artifacts before deciding whether Spotify should render.
     understanding = understand_query(query)
     resolved_entities = resolve_candidate_entities(understanding, evidence)
     ranked_entities = rank_music_entities(understanding, resolved_entities, evidence)
-    recommendation_plan = build_music_recommendation_plan(query, understanding, evidence)
+    recommendation_plan = build_music_recommendation_plan(
+        query,
+        understanding,
+        evidence,
+        max_candidates=spotify_limit,
+    )
 
+    # Non-Pro plans still get normal music answers, but playlist-style Spotify discovery stays gated.
+    if understanding.intent == "playlist_discovery" and not playlist_style:
+        understanding.needs_spotify = False
+
+    # Spotify lookup is optional; text answers and diagnostics should still work without credentials.
     spotify_error = None
     spotify_cards = []
     if understanding.needs_spotify:
@@ -27,11 +41,12 @@ def build_music_response(
                     ranked_entities,
                     understanding,
                     recommendation_plan=recommendation_plan,
+                    max_cards=spotify_limit,
                 )
             except Exception as exc:
-                spotify_error = str(exc)
+                spotify_error = "Spotify recommendation temporarily unavailable."
         else:
-            spotify_error = "Spotify credentials are not configured."
+            spotify_error = "Spotify recommendation temporarily unavailable."
 
     return MusicRoutingResult(
         query_understanding=understanding,

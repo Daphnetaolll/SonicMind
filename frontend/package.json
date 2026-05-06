@@ -1,0 +1,25 @@
+{
+  "name": "sonicmind-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5173",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4173"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.100.9",
+    "axios": "^1.16.0",
+    "bootstrap": "^5.3.8",
+    "react": "^19.2.5",
+    "react-bootstrap": "^2.10.10",
+    "react-dom": "^19.2.5",
+    "react-router-dom": "^7.14.2",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.0.1",
+    "vite": "^8.0.10"
+  }
+}

@@ -13,12 +13,14 @@ ENTITY_MAP_PATH = Path("data/music/music_entity_map.json")
 
 @lru_cache(maxsize=1)
 def load_music_entity_map() -> dict[str, dict[str, Any]]:
+    # Cache the curated entity map because music routing may consult it many times per question.
     if not ENTITY_MAP_PATH.exists():
         return {}
     return json.loads(ENTITY_MAP_PATH.read_text(encoding="utf-8"))
 
 
 def canonical_entity_name(name: str) -> str | None:
+    # Preserve the curated display casing while allowing case-insensitive user mentions.
     lowered = name.strip().lower()
     for candidate in load_music_entity_map():
         if candidate.lower() == lowered:
@@ -27,6 +29,7 @@ def canonical_entity_name(name: str) -> str | None:
 
 
 def known_entity_names() -> list[str]:
+    # Longer names are matched first so aliases do not steal partial matches from full titles.
     return sorted(load_music_entity_map(), key=len, reverse=True)
 
 
@@ -45,6 +48,7 @@ def get_entity_type(name: str) -> EntityType | None:
 
 
 def get_related_entities(name: str) -> list[RelatedMusicEntity]:
+    # Convert loose JSON relation rows into typed dataclasses for downstream ranking and rendering.
     record = get_entity_record(name)
     if not record:
         return []
@@ -61,6 +65,7 @@ def get_related_entities(name: str) -> list[RelatedMusicEntity]:
 
 
 def entities_by_genre_and_type(genre_hint: str | None, entity_type: EntityType) -> list[str]:
+    # Use curated genre tags as a fallback source of candidates when evidence has sparse entity mentions.
     if not genre_hint:
         return []
     wanted = genre_hint.lower()

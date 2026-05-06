@@ -1,11 +1,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+from backend.config.plans import (
+    ACTIVE_SUBSCRIPTION_STATUSES,
+    DEFAULT_PLAN_CODE,
+    PlanConfig,
+    get_plan,
+)
 from src.db import connect_db
-from src.repositories import usage_repository
-from src.services.subscription_service import get_subscription_status
+from src.repositories import credit_repository, usage_repository, user_repository
+
+
+PERIOD_LENGTH_DAYS = 30
 
 
 # QuotaStatus is the single UI-facing answer for whether a user can ask another question.
@@ -14,48 +23,221 @@ class QuotaStatus:
     allowed: bool
     charge_type: str
     remaining: int
-    subscription_id: str | None
-    period_start: object | None
-    period_end: object | None
+    subscription_id: str | None = None
+    period_start: object | None = None
+    period_end: object | None = None
+    current_plan: str = DEFAULT_PLAN_CODE
+    current_plan_name: str = "Free"
+    price_label: str = "$0/month"
+    remaining_daily_questions: int | None = None
+    remaining_monthly_questions: int | None = None
+    extra_question_credits: int = 0
+    limit_message: str | None = None
+    max_answer_tokens: int = 400
+    rag_top_k: int = 3
+    spotify_limit: int = 5
+    save_history: bool = False
+    favorites: bool = False
+    playlist_style: bool = False
+
+
+def _utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
+def _free_day_window(now: datetime) -> tuple[datetime, datetime]:
+    # Free-plan limits reset at midnight UTC, independent of the user's browser timezone.
+    start = now.astimezone(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    return start, start + timedelta(days=1)
+
+
+def _monthly_window(row: dict, plan: PlanConfig, now: datetime) -> tuple[datetime, datetime, bool]:
+    """
+    Paid plans use the stored billing window. Until Stripe exists, expired/missing
+    local periods renew into a rolling 30-day development window.
+    """
+    start = row.get("billing_period_start")
+    end = row.get("billing_period_end")
+    if start and end and end > now:
+        return start, end, False
+
+    new_start = now
+    new_end = now + timedelta(days=PERIOD_LENGTH_DAYS)
+    return new_start, new_end, True
+
+
+def _effective_plan(row: dict) -> PlanConfig:
+    # Inactive paid subscriptions fall back to Free until a real billing provider can reconcile them.
+    plan = get_plan(row.get("plan"))
+    if plan.code != "free" and row.get("subscription_status") not in ACTIVE_SUBSCRIPTION_STATUSES:
+        return get_plan("free")
+    return plan
+
+
+def _base_status(
+    *,
+    plan: PlanConfig,
+    allowed: bool,
+    charge_type: str,
+    remaining: int,
+    period_start: object | None,
+    period_end: object | None,
+    remaining_daily_questions: int | None,
+    remaining_monthly_questions: int | None,
+    extra_question_credits: int,
+) -> QuotaStatus:
+    # Keep all plan feature flags attached to every quota response for frontend gating.
+    return QuotaStatus(
+        allowed=allowed,
+        charge_type=charge_type,
+        remaining=remaining,
+        subscription_id=None,
+        period_start=period_start,
+        period_end=period_end,
+        current_plan=plan.code,
+        current_plan_name=plan.name,
+        price_label=plan.price_label,
+        remaining_daily_questions=remaining_daily_questions,
+        remaining_monthly_questions=remaining_monthly_questions,
+        extra_question_credits=extra_question_credits,
+        limit_message=None if allowed else plan.limit_message,
+        max_answer_tokens=plan.max_answer_tokens,
+        rag_top_k=plan.rag_top_k,
+        spotify_limit=plan.spotify_limit,
+        save_history=plan.save_history,
+        favorites=plan.favorites,
+        playlist_style=plan.playlist_style,
+    )
 
 
 def get_quota_status(user_id: str) -> QuotaStatus:
-    # Prefer an active subscription balance; otherwise fall back to the free-trial ledger.
-    subscription = get_subscription_status(user_id)
-    if subscription.subscribed:
-        return QuotaStatus(
-            allowed=subscription.remaining > 0,
-            charge_type="subscription",
-            remaining=subscription.remaining,
-            subscription_id=subscription.subscription_id,
-            period_start=subscription.current_period_start,
-            period_end=subscription.current_period_end,
+    # Evaluate quota from durable backend records; frontend counters are never trusted.
+    now = _utc_now()
+    with connect_db() as conn:
+        row = user_repository.get_user_by_id(conn, user_id)
+        if not row:
+            return _base_status(
+                plan=get_plan("free"),
+                allowed=False,
+                charge_type="none",
+                remaining=0,
+                period_start=None,
+                period_end=None,
+                remaining_daily_questions=0,
+                remaining_monthly_questions=None,
+                extra_question_credits=0,
+            )
+
+        plan = _effective_plan(row)
+        extra_credits = credit_repository.get_active_credit_balance(conn, user_id=user_id, now=now)
+        user_repository.update_extra_credit_snapshot(
+            conn,
+            user_id=user_id,
+            extra_question_credits=extra_credits,
         )
 
-    with connect_db() as conn:
-        remaining = usage_repository.get_free_balance(conn, user_id)
-        return QuotaStatus(
-            allowed=remaining > 0,
-            charge_type="free" if remaining > 0 else "none",
-            remaining=remaining,
-            subscription_id=None,
-            period_start=None,
-            period_end=None,
+        if plan.daily_limit is not None:
+            period_start, period_end = _free_day_window(now)
+            used = usage_repository.count_charged_questions(
+                conn,
+                user_id=user_id,
+                period_start=period_start,
+                period_end=period_end,
+                charge_types=("free",),
+            )
+            remaining_daily = max(plan.daily_limit - used, 0)
+            if remaining_daily > 0:
+                conn.commit()
+                return _base_status(
+                    plan=plan,
+                    allowed=True,
+                    charge_type="free",
+                    remaining=remaining_daily,
+                    period_start=period_start,
+                    period_end=period_end,
+                    remaining_daily_questions=remaining_daily,
+                    remaining_monthly_questions=None,
+                    extra_question_credits=extra_credits,
+                )
+            conn.commit()
+            return _base_status(
+                plan=plan,
+                allowed=extra_credits > 0,
+                charge_type="extra_credit" if extra_credits > 0 else "none",
+                remaining=extra_credits,
+                period_start=period_start,
+                period_end=period_end,
+                remaining_daily_questions=0,
+                remaining_monthly_questions=None,
+                extra_question_credits=extra_credits,
+            )
+
+        period_start, period_end, needs_period_update = _monthly_window(row, plan, now)
+        if needs_period_update:
+            user_repository.update_user_plan(
+                conn,
+                user_id=user_id,
+                plan=plan.code,
+                subscription_status=row.get("subscription_status") or "active",
+                billing_period_start=period_start,
+                billing_period_end=period_end,
+            )
+
+        monthly_limit = plan.monthly_limit or 0
+        used = usage_repository.count_charged_questions(
+            conn,
+            user_id=user_id,
+            period_start=period_start,
+            period_end=period_end,
+            charge_types=("subscription",),
         )
+        remaining_monthly = max(monthly_limit - used, 0)
+        conn.commit()
+
+    if remaining_monthly > 0:
+        return _base_status(
+            plan=plan,
+            allowed=True,
+            charge_type="subscription",
+            remaining=remaining_monthly,
+            period_start=period_start,
+            period_end=period_end,
+            remaining_daily_questions=None,
+            remaining_monthly_questions=remaining_monthly,
+            extra_question_credits=extra_credits,
+        )
+
+    return _base_status(
+        plan=plan,
+        allowed=extra_credits > 0,
+        charge_type="extra_credit" if extra_credits > 0 else "none",
+        remaining=extra_credits,
+        period_start=period_start,
+        period_end=period_end,
+        remaining_daily_questions=None,
+        remaining_monthly_questions=0,
+        extra_question_credits=extra_credits,
+    )
 
 
 def record_successful_question_usage(
     *,
     user_id: str,
     question_log_id: str,
+    quota: QuotaStatus | None = None,
     source: str = "quota_service.record_successful_question_usage",
 ) -> QuotaStatus:
     # Charge usage only after answer generation succeeds so failed questions do not consume quota.
-    status = get_quota_status(user_id)
+    status = quota or get_quota_status(user_id)
     if not status.allowed:
         raise ValueError("No remaining quota.")
 
-    event_type = "subscription_usage" if status.charge_type == "subscription" else "free_usage"
+    if status.charge_type == "extra_credit":
+        event_type = "extra_credit_usage"
+    elif status.charge_type == "subscription":
+        event_type = "subscription_usage"
+    else:
+        event_type = "free_usage"
 
     with connect_db() as conn:
         usage_repository.insert_usage_event(
@@ -70,6 +252,24 @@ def record_successful_question_usage(
             period_start=status.period_start,
             period_end=status.period_end,
         )
+        if status.charge_type == "extra_credit":
+            now = _utc_now()
+            credit_repository.insert_credit_transaction(
+                conn,
+                transaction_id=str(uuid4()),
+                user_id=user_id,
+                credit_amount=-1,
+                purchased_at=now,
+                expires_at=None,
+                source="usage",
+                note=f"Question usage for {question_log_id}.",
+            )
+            balance = credit_repository.get_active_credit_balance(conn, user_id=user_id, now=now)
+            user_repository.update_extra_credit_snapshot(
+                conn,
+                user_id=user_id,
+                extra_question_credits=balance,
+            )
         conn.commit()
 
     return get_quota_status(user_id)

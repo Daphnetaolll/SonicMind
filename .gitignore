@@ -1,0 +1,25 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# env
+.env
+.env.local
+.venv/
+venv/
+
+# generated data
+data/index/*
+!data/index/faiss.index
+data/processed/embeddings.npy
+data/music/generated_recommendations.json
+
+# local caches
+.streamlit/
+
+# frontend
+frontend/node_modules/
+frontend/dist/

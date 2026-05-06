@@ -1,0 +1,1066 @@
+:root {
+  /* Define the app-wide type and base colors before Bootstrap component overrides apply. */
+  color: #1d2326;
+  background: #f4f1ea;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  /* Border-box sizing keeps panels and form controls predictable across Bootstrap layouts. */
+  box-sizing: border-box;
+}
+
+body {
+  /* The page background stays subtle so dense chat, sources, and controls remain scannable. */
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, rgba(244, 241, 234, 0.92), rgba(237, 241, 238, 0.98)),
+    #f4f1ea;
+}
+
+button,
+input,
+textarea {
+  letter-spacing: 0;
+}
+
+.app-shell {
+  min-height: 100vh;
+}
+
+.topbar {
+  /* The topbar carries the product identity and separates navigation from the workspace. */
+  background: #18312f;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.brand-mark {
+  color: #f8f4e8 !important;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
+.user-chip {
+  max-width: 42vw;
+  overflow: hidden;
+  color: #f8f4e8;
+  font-size: 0.9rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-chip {
+  padding: 0.25rem 0.55rem;
+  color: #18312f;
+  background: #f8f4e8;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.auth-page,
+.chat-page,
+.pricing-page,
+.landing-page {
+  padding: 2rem 0;
+}
+
+.landing-page,
+.pricing-page {
+  position: relative;
+  min-height: calc(100vh - 76px);
+  color: #f8f4e8;
+  background:
+    radial-gradient(circle at 18% 20%, rgba(110, 190, 176, 0.22), transparent 32rem),
+    radial-gradient(circle at 82% 14%, rgba(139, 74, 32, 0.18), transparent 28rem),
+    linear-gradient(145deg, #102321 0%, #18312f 48%, #1d2326 100%);
+  overflow: hidden;
+}
+
+.landing-page::before,
+.pricing-page::before {
+  /* Soft archive texture adds depth without relying on external assets or heavy animation libraries. */
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.9), transparent 82%);
+}
+
+.landing-page > .container-lg,
+.pricing-page > .container-lg {
+  position: relative;
+  z-index: 1;
+}
+
+.landing-hero {
+  display: grid;
+  align-content: center;
+  min-height: min(680px, calc(100vh - 140px));
+  max-width: 860px;
+  padding: 3rem 0;
+}
+
+.landing-kicker {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 1rem;
+  padding: 0.36rem 0.75rem;
+  color: #c9ded9;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.landing-hero h1 {
+  margin: 0;
+  color: #f8f4e8;
+  font-size: clamp(3rem, 10vw, 8.4rem);
+  font-weight: 900;
+  line-height: 0.92;
+}
+
+.landing-hero p {
+  max-width: 720px;
+  margin: 1.25rem 0 0;
+  color: rgba(248, 244, 232, 0.78);
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+}
+
+.landing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.6rem;
+}
+
+.landing-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: -2.5rem;
+  padding-bottom: 2rem;
+}
+
+.landing-feature-card {
+  padding: 1.15rem;
+  color: #f8f4e8;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  backdrop-filter: blur(18px);
+  transition:
+    transform 260ms ease,
+    border-color 260ms ease,
+    background-color 260ms ease;
+}
+
+.landing-feature-card:hover,
+.landing-feature-card:focus-within {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(201, 222, 217, 0.42);
+  transform: translateY(-4px);
+}
+
+.landing-feature-card span {
+  display: block;
+  width: 2.4rem;
+  height: 0.2rem;
+  margin-bottom: 0.9rem;
+  background: #c9ded9;
+  border-radius: 999px;
+}
+
+.landing-feature-card h2 {
+  margin: 0 0 0.45rem;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.landing-feature-card p {
+  margin: 0;
+  color: rgba(248, 244, 232, 0.74);
+  font-size: 0.92rem;
+}
+
+.auth-layout {
+  /* Auth pages split value copy and forms on desktop while collapsing cleanly on mobile. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 430px);
+  gap: 2rem;
+  align-items: center;
+  min-height: calc(100vh - 96px);
+}
+
+.auth-copy h1,
+.empty-state h1 {
+  margin: 0 0 0.75rem;
+  color: #18312f;
+  font-size: clamp(2rem, 4vw, 4.25rem);
+  font-weight: 800;
+}
+
+.auth-copy p,
+.empty-state p,
+.muted-copy {
+  color: #5d6463;
+}
+
+.auth-panel,
+.chat-window,
+.inspector-panel,
+.settings-panel,
+.details-panel {
+  /* Shared panel treatment keeps auth, chat, and inspector surfaces visually related. */
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(29, 35, 38, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 18px 45px rgba(29, 35, 38, 0.08);
+}
+
+.auth-panel {
+  padding: 1.5rem;
+}
+
+.auth-panel h2,
+.settings-panel h2,
+.details-panel h2 {
+  margin-bottom: 1rem;
+  color: #18312f;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.auth-switch {
+  margin: 1rem 0 0;
+  color: #5d6463;
+  font-size: 0.95rem;
+}
+
+.chat-window {
+  /* The chat grid fixes the composer below a scrollable transcript area. */
+  display: grid;
+  grid-template-rows: minmax(440px, calc(100vh - 260px)) auto;
+  overflow: hidden;
+}
+
+.message-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 0;
+  padding: 1.25rem;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+.message-list-end {
+  min-height: 1px;
+}
+
+.empty-state {
+  display: grid;
+  align-content: center;
+  gap: 1rem;
+  min-height: 100%;
+  max-width: 660px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.message-row {
+  display: flex;
+  width: 100%;
+}
+
+.message-row-user {
+  justify-content: flex-end;
+}
+
+.message-row-assistant {
+  justify-content: flex-start;
+}
+
+.message-bubble {
+  /* Bubbles cap line length so evidence-heavy answers remain readable. */
+  max-width: min(720px, 88%);
+  padding: 0.875rem 1rem;
+  border-radius: 8px;
+}
+
+.message-bubble p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.example-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.example-prompts button {
+  padding: 0.55rem 0.75rem;
+  color: #18312f;
+  background: #ffffff;
+  border: 1px solid rgba(47, 111, 101, 0.28);
+  border-radius: 999px;
+  font-size: 0.9rem;
+}
+
+.example-prompts button:hover,
+.example-prompts button:focus-visible {
+  color: #ffffff;
+  background: #2f6f65;
+}
+
+.bubble-user {
+  color: #ffffff;
+  background: #2f6f65;
+}
+
+.bubble-assistant {
+  color: #1d2326;
+  background: #f8f4e8;
+  border: 1px solid rgba(29, 35, 38, 0.12);
+}
+
+.certainty-label {
+  margin-bottom: 0.375rem;
+  color: #8b4a20;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.chat-confidence-line {
+  margin: 0.5rem 0 0;
+  padding-left: 0.25rem;
+  color: #5d6463;
+  font-size: 0.78rem;
+}
+
+.composer {
+  /* Composer controls stay in a stable grid so submit buttons do not jump as text grows. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #ffffff;
+  border-top: 1px solid rgba(29, 35, 38, 0.12);
+}
+
+.composer textarea {
+  min-height: 64px;
+  resize: vertical;
+}
+
+.composer-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 96px;
+}
+
+.inspector-panel {
+  /* The inspector stacks quota, Spotify, sources, and settings beside the main conversation. */
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.status-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.8fr);
+  gap: 0.75rem;
+}
+
+.status-strip div {
+  padding: 0.75rem;
+  background: #18312f;
+  border-radius: 8px;
+}
+
+.status-strip span,
+.status-strip strong {
+  display: block;
+  color: #f8f4e8;
+}
+
+.status-strip span {
+  font-size: 0.76rem;
+  opacity: 0.78;
+}
+
+.status-strip strong {
+  margin-top: 0.2rem;
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+}
+
+.settings-panel,
+.details-panel {
+  padding: 1rem;
+  box-shadow: none;
+}
+
+.collapsible-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.panel-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 1rem;
+  color: #18312f;
+  background: transparent;
+  border: 0;
+  text-align: left;
+}
+
+.panel-toggle strong,
+.panel-toggle small {
+  display: block;
+}
+
+.panel-toggle strong {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.panel-toggle small {
+  margin-top: 0.2rem;
+  color: #5d6463;
+  font-size: 0.78rem;
+}
+
+.panel-toggle-icon {
+  flex: 0 0 auto;
+  width: 0.72rem;
+  height: 0.72rem;
+  border-right: 2px solid #2f6f65;
+  border-bottom: 2px solid #2f6f65;
+  transform: rotate(45deg);
+  transition: transform 180ms ease;
+}
+
+.panel-toggle-icon.is-open {
+  transform: rotate(225deg);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  border: 0;
+  clip: rect(0, 0, 0, 0);
+}
+
+.panel-body {
+  padding: 0 1rem 1rem;
+}
+
+.favorites-panel {
+  background:
+    linear-gradient(135deg, rgba(248, 244, 232, 0.96), rgba(255, 255, 255, 0.9)),
+    #ffffff;
+  border-color: rgba(139, 74, 32, 0.22);
+}
+
+.favorites-panel .panel-toggle strong {
+  color: #8b4a20;
+}
+
+.route-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-bottom: 0.75rem;
+}
+
+.source-heading {
+  display: grid;
+  gap: 0.25rem;
+  width: 100%;
+  color: #1d2326;
+  font-size: 0.92rem;
+}
+
+.source-heading span {
+  color: #5d6463;
+  font-size: 0.78rem;
+}
+
+.source-snippet {
+  color: #394240;
+  font-weight: 600;
+}
+
+.source-list details {
+  margin-bottom: 0.875rem;
+}
+
+.source-list summary {
+  color: #2f6f65;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.source-list details p {
+  /* Full evidence text scrolls inside the inspector instead of stretching the whole page. */
+  max-height: 220px;
+  margin-top: 0.75rem;
+  overflow: auto;
+  color: #394240;
+  background: #f8f4e8;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.source-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  color: #5d6463;
+  font-size: 0.86rem;
+}
+
+.spotify-list {
+  position: relative;
+  display: grid;
+  gap: 0.75rem;
+  overflow: hidden;
+  border-radius: 8px;
+  isolation: isolate;
+}
+
+.spotify-dynamic-bg {
+  position: absolute;
+  inset: -18%;
+  z-index: -1;
+  background-position: center;
+  background-size: cover;
+  opacity: 0;
+  filter: blur(34px) saturate(1.18);
+  transform: scale(1.18);
+  transition: opacity 420ms ease, transform 520ms ease;
+}
+
+.spotify-list.has-dynamic-bg .spotify-dynamic-bg {
+  opacity: 0.2;
+  transform: scale(1.08);
+}
+
+.spotify-item {
+  position: relative;
+  display: grid;
+  gap: 0.625rem;
+  padding: 0.55rem 0.5rem 0.875rem;
+  border-bottom: 1px solid rgba(29, 35, 38, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  transition:
+    transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    background-color 320ms ease,
+    box-shadow 320ms ease;
+}
+
+.spotify-item::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 3rem;
+  width: 7rem;
+  aspect-ratio: 1;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.44), rgba(255, 255, 255, 0));
+  border-radius: 50%;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.2);
+  transition: opacity 420ms ease, transform 520ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.spotify-item:hover,
+.spotify-item:focus-within {
+  background: rgba(255, 255, 255, 0.74);
+  box-shadow: 0 18px 42px rgba(29, 35, 38, 0.12);
+  transform: translateY(-2px) scale(1.018);
+}
+
+.spotify-item:hover::after,
+.spotify-item:focus-within::after {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(4.8);
+}
+
+.spotify-card-shell {
+  /* Artwork, copy, and actions keep fixed columns so Spotify rows are easy to scan. */
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.spotify-artwork {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  aspect-ratio: 1;
+  overflow: hidden;
+  color: #f8f4e8;
+  background: #18312f;
+  border-radius: 8px;
+  transition:
+    transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 320ms ease;
+}
+
+.spotify-item:hover .spotify-artwork,
+.spotify-item:focus-within .spotify-artwork {
+  box-shadow: 0 12px 28px rgba(29, 35, 38, 0.18);
+  transform: scale(1.1);
+}
+
+.spotify-artwork img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.spotify-artwork-fallback {
+  padding: 0.35rem;
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.spotify-copy {
+  min-width: 0;
+}
+
+.spotify-copy strong,
+.spotify-item span {
+  display: block;
+}
+
+.spotify-copy strong {
+  overflow: hidden;
+  color: #1d2326;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spotify-item span {
+  color: #5d6463;
+  font-size: 0.86rem;
+}
+
+.spotify-copy small {
+  display: inline-block;
+  margin-top: 0.25rem;
+  color: #8b4a20;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.spotify-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  align-items: stretch;
+}
+
+.spotify-open-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0.45rem 0.7rem;
+  color: #ffffff;
+  background: #2f6f65;
+  border: 0;
+  border-radius: 999px;
+  font-size: 0.84rem;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.spotify-favorite-button {
+  min-height: 34px;
+  padding: 0.4rem 0.65rem;
+  color: #2f6f65;
+  background: #ffffff;
+  border: 1px solid rgba(47, 111, 101, 0.32);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.spotify-favorite-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.spotify-open-link:hover,
+.spotify-open-link:focus-visible {
+  color: #ffffff;
+  background: #285e56;
+}
+
+.spotify-fallback-link {
+  margin: 0.25rem 0 0;
+  padding: 0.65rem 0.75rem;
+  color: #5d6463;
+  background: #f8f4e8;
+  border-radius: 8px;
+  font-size: 0.78rem;
+}
+
+.spotify-fallback-link span {
+  display: block;
+  margin-top: 0.25rem;
+  color: #18312f;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.loading-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  color: #5d6463;
+  font-size: 0.92rem;
+}
+
+.error-alert {
+  margin-top: 1rem;
+}
+
+.saved-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.text-action {
+  justify-self: start;
+  padding: 0;
+  color: #2f6f65;
+  background: transparent;
+  border: 0;
+  font-weight: 800;
+}
+
+.saved-item {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  background: #f8f4e8;
+  border-radius: 8px;
+}
+
+.saved-item strong,
+.favorite-item strong {
+  color: #1d2326;
+}
+
+.saved-item p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: #5d6463;
+  font-size: 0.86rem;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.favorite-item {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.favorite-item img {
+  width: 44px;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.favorite-item span {
+  min-width: 0;
+}
+
+.favorite-item strong,
+.favorite-item small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.favorite-item small {
+  color: #5d6463;
+}
+
+.favorite-item a,
+.favorite-item button {
+  color: #2f6f65;
+  background: transparent;
+  border: 0;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.pricing-hero {
+  max-width: 760px;
+  margin-bottom: 1.5rem;
+}
+
+.pricing-hero h1 {
+  margin: 0 0 0.75rem;
+  color: #f8f4e8;
+  font-size: clamp(2rem, 5vw, 4.25rem);
+  font-weight: 800;
+}
+
+.pricing-hero p,
+.extra-pack-panel p {
+  color: rgba(248, 244, 232, 0.76);
+}
+
+.premium-hero {
+  padding-top: 2rem;
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.plan-card,
+.extra-pack-panel {
+  color: #f8f4e8;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(18px);
+}
+
+.plan-card {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+  padding: 1.25rem;
+  transition:
+    transform 260ms ease,
+    border-color 260ms ease,
+    background-color 260ms ease;
+}
+
+.plan-card:hover,
+.plan-card:focus-within {
+  background: rgba(255, 255, 255, 0.13);
+  border-color: rgba(201, 222, 217, 0.42);
+  transform: translateY(-5px);
+}
+
+.plan-card.is-featured {
+  border-color: rgba(248, 244, 232, 0.42);
+  box-shadow: 0 26px 70px rgba(47, 111, 101, 0.18);
+}
+
+.plan-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.plan-card h2,
+.extra-pack-panel h2 {
+  margin: 0;
+  color: #f8f4e8;
+  font-size: 1.12rem;
+  font-weight: 800;
+}
+
+.plan-price {
+  color: #c9ded9;
+  font-size: 1.8rem;
+}
+
+.plan-card ul {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding-left: 1rem;
+  color: rgba(248, 244, 232, 0.78);
+}
+
+.extra-pack-panel {
+  margin-top: 1rem;
+  padding: 1.25rem;
+}
+
+.extra-pack-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.extra-pack {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.75rem;
+  background: rgba(248, 244, 232, 0.1);
+  border-radius: 8px;
+}
+
+.btn-primary {
+  /* Bootstrap primary buttons inherit the SonicMind action color. */
+  --bs-btn-bg: #2f6f65;
+  --bs-btn-border-color: #2f6f65;
+  --bs-btn-hover-bg: #285e56;
+  --bs-btn-hover-border-color: #285e56;
+}
+
+a {
+  color: #2f6f65;
+}
+
+@media (max-width: 991px) {
+  /* Tablet layouts stack the inspector below chat without shrinking the transcript too far. */
+  .auth-layout {
+    grid-template-columns: 1fr;
+    align-items: start;
+    min-height: auto;
+  }
+
+  .auth-copy {
+    padding-top: 1rem;
+  }
+
+  .chat-window {
+    grid-template-rows: minmax(420px, 60vh) auto;
+  }
+
+  .pricing-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-feature-grid {
+    grid-template-columns: 1fr;
+    margin-top: 0;
+  }
+}
+
+@media (max-width: 575px) {
+  /* Phone layouts prioritize reachable controls and prevent Spotify actions from overflowing. */
+  .auth-page,
+  .chat-page,
+  .landing-page,
+  .pricing-page {
+    padding: 1rem 0;
+  }
+
+  .topbar-actions {
+    gap: 0.5rem;
+  }
+
+  .user-chip {
+    display: none;
+  }
+
+  .plan-chip {
+    display: none;
+  }
+
+  .composer {
+    grid-template-columns: 1fr;
+  }
+
+  .composer-actions {
+    flex-direction: row;
+    min-width: 0;
+  }
+
+  .composer-actions .btn {
+    flex: 1;
+  }
+
+  .message-bubble {
+    max-width: 96%;
+  }
+
+  .spotify-card-shell {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .spotify-artwork {
+    width: 56px;
+  }
+
+  .spotify-actions {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .spotify-open-link {
+    justify-content: center;
+  }
+
+  .favorite-item {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .favorite-item a,
+  .favorite-item button {
+    justify-self: start;
+  }
+
+  .extra-pack-grid,
+  .extra-pack {
+    grid-template-columns: 1fr;
+  }
+}

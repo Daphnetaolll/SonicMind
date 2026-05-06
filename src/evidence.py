@@ -10,6 +10,7 @@ SufficiencyLabel = Literal["SUFFICIENT", "PARTIAL", "INSUFFICIENT"]
 CertaintyLabel = Literal["CONFIDENT", "PARTIAL", "UNCERTAIN"]
 
 
+# EvidenceItem is the normalized retrieval record shared by local, trusted-site, and web retrievers.
 @dataclass
 class EvidenceItem:
     rank: int
@@ -25,6 +26,7 @@ class EvidenceItem:
     metadata: dict[str, str] = field(default_factory=dict)
 
 
+# Assessment and citation dataclasses keep synthesis output separate from raw retrieved text.
 @dataclass
 class EvidenceAssessment:
     label: SufficiencyLabel
@@ -49,4 +51,3 @@ class AnswerSynthesis:
     certainty: CertaintyLabel
     uncertainty_note: str | None
     citations: list[Citation]
-

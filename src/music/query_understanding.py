@@ -7,8 +7,11 @@ from src.music.schemas import MusicEntityMention, QueryUnderstandingResult
 
 
 GENRE_PATTERNS = (
+    "ambient techno",
+    "minimal techno",
     "melodic techno",
     "melodic house",
+    "acid house",
     "deep house",
     "progressive house",
     "electronic music",
@@ -16,6 +19,16 @@ GENRE_PATTERNS = (
     "techno",
     "house",
     "trance",
+)
+
+MOOD_GENRE_HINTS = (
+    (("dark", "minimal", "hypnotic", "underground", "暗黑", "极简", "極簡", "深夜", "凌晨"), "minimal techno"),
+    (("fast", "late-night", "late night", "energetic", "driving", "peak-time", "peak time"), "techno"),
+    (("study", "studying", "focus", "学习", "ambient", "soft"), "ambient electronic music"),
+    (("deep", "warm bassline", "warm basslines", "温暖", "groovy"), "deep house"),
+    (("emotional", "vocal", "vocals", "melodic", "情绪", "人声"), "melodic house"),
+    (("sunset", "not too aggressive", "dancing", "warm-up", "warmup"), "house"),
+    (("fashion show", "runway", "时装秀"), "electronic music"),
 )
 
 
@@ -26,8 +39,22 @@ def _contains_any(text: str, markers: tuple[str, ...]) -> bool:
 
 def _clean_genre_candidate(candidate: str) -> str:
     candidate = re.sub(r"\b(labels|artists|songs|tracks|albums|playlists)\b.*$", "", candidate).strip(" ?.")
-    candidate = re.sub(r"^(the|some)\s+", "", candidate).strip()
+    candidate = re.sub(r"^(me|the|some)\s+", "", candidate).strip()
     return candidate
+
+
+def _known_genre_in_text(text: str) -> str | None:
+    lowered = text.lower()
+    if "tehcno" in lowered:
+        return "techno"
+    for genre in GENRE_PATTERNS:
+        if genre in lowered:
+            return genre
+    if "浩室" in text:
+        return "house"
+    if "电子" in text or "電子" in text:
+        return "electronic music"
+    return None
 
 
 def _detect_genre(query: str) -> str | None:
@@ -40,7 +67,7 @@ def _detect_genre(query: str) -> str | None:
     if match:
         candidate = _clean_genre_candidate(match.group(1))
         if candidate and candidate not in {"the", "some", "music"}:
-            return candidate
+            return _known_genre_in_text(candidate) or candidate
 
     chinese_latin_match = re.search(
         r"(?:最近|最新|最火|热门).*?([a-z0-9&'’.\- ]+?)\s*(?:音乐|歌曲|歌|tracks?|songs?)",
@@ -49,7 +76,7 @@ def _detect_genre(query: str) -> str | None:
     if chinese_latin_match:
         candidate = _clean_genre_candidate(chinese_latin_match.group(1))
         if candidate and candidate not in {"the", "some", "music"}:
-            return candidate
+            return _known_genre_in_text(candidate) or candidate
 
     definition_match = re.search(
         r"(?:what is|define|explain|tell me about)\s+([a-z0-9&'’.\- ]+?)\??$",
@@ -57,11 +84,30 @@ def _detect_genre(query: str) -> str | None:
     )
     if definition_match:
         candidate = definition_match.group(1).strip(" ?.")
-        if candidate and candidate not in {"it", "this", "that", "music"}:
+        known_genre = _known_genre_in_text(candidate)
+        if known_genre:
+            if "difference between" in candidate or "relationship between" in candidate:
+                return known_genre
+            return candidate if candidate.endswith(known_genre) else known_genre
+        if candidate and candidate not in {"it", "this", "that", "music"} and _contains_any(
+            candidate,
+            ("genre", "style", "scene"),
+        ):
             return candidate
 
-    for genre in GENRE_PATTERNS:
-        if genre in lowered:
+    return _known_genre_in_text(query)
+
+
+def _detect_mood_genre(query: str) -> str | None:
+    """
+    Explanation:
+    Recommendation prompts often describe a mood instead of naming a genre.
+    Mapping common portfolio-demo moods to broad electronic styles gives the
+    Spotify planner useful search terms without pretending we know the user's taste perfectly.
+    """
+    lowered = query.lower()
+    for markers, genre in MOOD_GENRE_HINTS:
+        if any(marker in lowered for marker in markers):
             return genre
     return None
 
@@ -86,12 +132,58 @@ def understand_query(query: str) -> QueryUnderstandingResult:
     # Classify the music task and decide whether Spotify cards should be displayed.
     lowered = query.lower()
     entities = _extract_known_entities(query)
-    genre_hint = _detect_genre(query)
+    genre_hint = _detect_mood_genre(query) or _detect_genre(query)
 
     is_comparison = _contains_any(lowered, ("difference between", "compare", "vs", "versus", "区别", "对比"))
     is_recommendation = _contains_any(
         lowered,
-        ("best", "top", "popular", "recommend", "hot", "hottest", "trending", "latest", "new", "推荐", "最棒", "最好", "热门", "最火", "最新"),
+        (
+            "best",
+            "top",
+            "popular",
+            "recommend",
+            "build me",
+            "give me",
+            "make me",
+            "create",
+            "i want",
+            "listen to",
+            "hot",
+            "hottest",
+            "trending",
+            "latest",
+            "new",
+            "推荐",
+            "帮我推荐",
+            "最棒",
+            "最好",
+            "热门",
+            "最火",
+            "最新",
+        ),
+    )
+    is_mood_request = bool(genre_hint) and _contains_any(
+        lowered,
+        ("i want", "give me", "something", "listen to", "for dancing", "for a", "music for", "适合", "想听"),
+    )
+    explicit_track_request = _contains_any(lowered, ("track", "tracks", "song", "songs", "歌曲", "歌"))
+    playlist_style_request = _contains_any(
+        lowered,
+        (
+            "playlist",
+            "playlists",
+            "dj set",
+            "warm-up",
+            "warmup",
+            "peak-time",
+            "peak time",
+            "closing set",
+            "set order",
+            "starts soft",
+            "becomes energetic",
+            "播放列表",
+            "歌单",
+        ),
     )
 
     # Route user intent into a primary entity type and display target for the music module.
@@ -100,10 +192,28 @@ def understand_query(query: str) -> QueryUnderstandingResult:
         primary_entity_type = entities[0].type if entities and entities[0].type != "unknown" else "ambiguous"
         display_target = "optional_representative_tracks"
         needs_spotify = True
+    elif playlist_style_request and not explicit_track_request and (is_recommendation or genre_hint):
+        # Playlist and DJ-set prompts should produce playable track candidates, not generic DJ profile cards.
+        intent = "playlist_discovery"
+        primary_entity_type = "playlist"
+        display_target = "tracks"
+        needs_spotify = True
+    elif is_mood_request:
+        intent = "track_recommendation"
+        primary_entity_type = "track"
+        display_target = "tracks"
+        needs_spotify = True
     elif _contains_any(lowered, ("label", "labels", "厂牌")):
         intent = "label_recommendation" if is_recommendation else "label_profile"
         primary_entity_type = "label"
         display_target = "representative_tracks"
+        needs_spotify = True
+    elif explicit_track_request and is_recommendation:
+        # "DJ" can mean an artist in profile questions, but "recommend songs for a DJ set"
+        # should route to playable track cards with Spotify timeline controls.
+        intent = "track_recommendation"
+        primary_entity_type = "track"
+        display_target = "tracks"
         needs_spotify = True
     elif _contains_any(lowered, ("artist", "artists", "producer", "dj", "艺人", "制作人")):
         intent = "artist_recommendation" if is_recommendation else "artist_profile"
@@ -125,7 +235,7 @@ def understand_query(query: str) -> QueryUnderstandingResult:
         primary_entity_type = "playlist"
         display_target = "playlists"
         needs_spotify = True
-    elif _contains_any(lowered, ("what is", "define", "explain", "tell me about", "是什么", "介绍")):
+    elif _contains_any(lowered, ("what is", "define", "explain", "tell me about", "是什么", "什么是", "介紹", "介绍")):
         if genre_hint and (not entities or any(item.type == "genre" for item in entities)):
             intent = "genre_explanation"
             primary_entity_type = "genre"

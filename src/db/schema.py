@@ -14,6 +14,11 @@ SCHEMA_STATEMENTS = [
         email TEXT NOT NULL UNIQUE,
         password_hash TEXT NOT NULL,
         display_name TEXT,
+        plan TEXT NOT NULL DEFAULT 'free',
+        subscription_status TEXT NOT NULL DEFAULT 'active',
+        billing_period_start TIMESTAMPTZ,
+        billing_period_end TIMESTAMPTZ,
+        extra_question_credits INTEGER NOT NULL DEFAULT 0,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         deleted_at TIMESTAMPTZ
@@ -47,7 +52,7 @@ SCHEMA_STATEMENTS = [
         status TEXT NOT NULL CHECK (status IN ('started', 'succeeded', 'failed')),
         charged BOOLEAN NOT NULL DEFAULT FALSE,
         charge_type TEXT NOT NULL DEFAULT 'none' CHECK (
-            charge_type IN ('free', 'subscription', 'none')
+            charge_type IN ('free', 'subscription', 'extra_credit', 'none')
         ),
         error_message TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -66,6 +71,7 @@ SCHEMA_STATEMENTS = [
                 'free_usage',
                 'subscription_grant',
                 'subscription_usage',
+                'extra_credit_usage',
                 'manual_adjustment',
                 'refund_usage'
             )
@@ -101,6 +107,91 @@ SCHEMA_STATEMENTS = [
     )
     """,
     """
+    CREATE TABLE IF NOT EXISTS credit_transactions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users (id),
+        credit_amount INTEGER NOT NULL,
+        purchased_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        expires_at TIMESTAMPTZ,
+        source TEXT NOT NULL,
+        note TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS chat_messages (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users (id),
+        question TEXT NOT NULL,
+        answer TEXT NOT NULL,
+        sources_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+        spotify_results_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS favorite_tracks (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users (id),
+        spotify_track_id TEXT NOT NULL,
+        track_name TEXT NOT NULL,
+        artist_name TEXT NOT NULL,
+        spotify_url TEXT NOT NULL,
+        album_image TEXT,
+        source_question TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (user_id, spotify_track_id)
+    )
+    """,
+    """
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'free'
+    """,
+    """
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS subscription_status TEXT NOT NULL DEFAULT 'active'
+    """,
+    """
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS billing_period_start TIMESTAMPTZ
+    """,
+    """
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS billing_period_end TIMESTAMPTZ
+    """,
+    """
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS extra_question_credits INTEGER NOT NULL DEFAULT 0
+    """,
+    """
+    ALTER TABLE question_logs
+    DROP CONSTRAINT IF EXISTS question_logs_charge_type_check
+    """,
+    """
+    ALTER TABLE question_logs
+    ADD CONSTRAINT question_logs_charge_type_check
+    CHECK (charge_type IN ('free', 'subscription', 'extra_credit', 'none'))
+    """,
+    """
+    ALTER TABLE usage_ledger
+    DROP CONSTRAINT IF EXISTS usage_ledger_event_type_check
+    """,
+    """
+    ALTER TABLE usage_ledger
+    ADD CONSTRAINT usage_ledger_event_type_check
+    CHECK (
+        event_type IN (
+            'free_grant',
+            'free_usage',
+            'subscription_grant',
+            'subscription_usage',
+            'extra_credit_usage',
+            'manual_adjustment',
+            'refund_usage'
+        )
+    )
+    """,
+    """
     CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id
     ON subscriptions (user_id)
     """,
@@ -131,6 +222,18 @@ SCHEMA_STATEMENTS = [
     """
     CREATE INDEX IF NOT EXISTS idx_billing_events_subscription_id
     ON billing_events (subscription_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_credit_transactions_user_expires
+    ON credit_transactions (user_id, expires_at)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_chat_messages_user_created
+    ON chat_messages (user_id, created_at DESC)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_favorite_tracks_user_created
+    ON favorite_tracks (user_id, created_at DESC)
     """,
 ]
 

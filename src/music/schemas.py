@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 
+# Literal aliases keep music routing state constrained across extractor, planner, and Spotify code.
 Intent = Literal[
     "label_recommendation",
     "artist_recommendation",
@@ -42,6 +43,7 @@ RecommendationQuestionType = Literal[
 RecommendationSourceType = Literal["evidence", "web_search", "generated_cache", "curated", "spotify_fallback"]
 
 
+# Query-understanding dataclasses describe what the user asked before retrieval or Spotify lookup.
 @dataclass
 class MusicEntityMention:
     name: str
@@ -61,6 +63,7 @@ class QueryUnderstandingResult:
     spotify_display_target: SpotifyDisplayTarget
 
 
+# Entity-resolution dataclasses preserve candidate uncertainty for UI diagnostics and ranking.
 @dataclass
 class PossibleEntityType:
     type: EntityType
@@ -99,10 +102,12 @@ class RankedMusicEntity:
 
 @dataclass
 class SpotifyCard:
+    # Cards contain only browser-safe Spotify display data, never provider credentials.
     card_type: Literal["artist", "track", "album", "playlist"]
     title: str
     subtitle: str
     spotify_url: str
+    spotify_id: str | None = None
     image_url: str | None = None
     embed_url: str | None = None
     popularity: int | None = None
@@ -112,6 +117,7 @@ class SpotifyCard:
 
 @dataclass
 class MusicTrackCandidate:
+    # Track candidates carry source provenance so generated recommendations stay explainable.
     title: str
     artist: str
     score: float
@@ -124,6 +130,7 @@ class MusicTrackCandidate:
 
 @dataclass
 class MusicRecommendationPlan:
+    # The plan coordinates answer text and Spotify cards around the same source-grounded candidates.
     question_type: RecommendationQuestionType
     genre_hint: str | None
     time_window: str | None
@@ -135,6 +142,7 @@ class MusicRecommendationPlan:
 
 @dataclass
 class MusicRoutingResult:
+    # Music routing packages every music-specific artifact the RAG pipeline exposes to the UI.
     query_understanding: QueryUnderstandingResult
     resolved_entities: list[ResolvedMusicEntity]
     ranked_entities: list[RankedMusicEntity]

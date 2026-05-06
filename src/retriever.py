@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -45,6 +46,37 @@ def build_chunk_lookup(chunks_path: Path) -> dict[str, dict[str, Any]]:
     return lookup
 
 
+@lru_cache(maxsize=4)
+def _cached_index(index_path: str):
+    # Keep the FAISS index in memory so repeated chat requests do not reload the same binary artifact.
+    return load_faiss_index(Path(index_path))
+
+
+@lru_cache(maxsize=4)
+def _cached_jsonl(path: str) -> tuple[dict[str, Any], ...]:
+    # JSONL corpus metadata is immutable between rebuilds, so it is safe to cache until explicitly cleared.
+    return tuple(load_jsonl(Path(path)))
+
+
+@lru_cache(maxsize=4)
+def _cached_chunk_lookup(chunks_path: str) -> dict[str, dict[str, Any]]:
+    return build_chunk_lookup(Path(chunks_path))
+
+
+@lru_cache(maxsize=4)
+def _cached_embedder(model_name: str) -> TextEmbedder:
+    # SentenceTransformer construction may contact Hugging Face; reuse it across requests to avoid rate limits.
+    return TextEmbedder(EmbeddingConfig(model_name=model_name, normalize=True))
+
+
+def clear_retrieval_cache() -> None:
+    """Clear cached retrieval artifacts after rebuilding the local knowledge base."""
+    _cached_index.cache_clear()
+    _cached_jsonl.cache_clear()
+    _cached_chunk_lookup.cache_clear()
+    _cached_embedder.cache_clear()
+
+
 def retrieve_topk(query: str, k: int = 5, model_name: str = DEFAULT_EMBEDDING_MODEL) -> list[RetrievalResult]:
     # Validate all generated corpus artifacts before loading the FAISS index.
     if not INDEX_PATH.exists():
@@ -54,12 +86,10 @@ def retrieve_topk(query: str, k: int = 5, model_name: str = DEFAULT_EMBEDDING_MO
     if not CHUNKS_PATH.exists():
         raise FileNotFoundError("Missing chunks.jsonl. Run scripts/preprocess.py first.")
 
-    index = load_faiss_index(INDEX_PATH)
-
-    meta = load_jsonl(META_PATH)
-    chunk_lookup = build_chunk_lookup(CHUNKS_PATH)
-
-    embedder = TextEmbedder(EmbeddingConfig(model_name=model_name, normalize=True))
+    index = _cached_index(str(INDEX_PATH))
+    meta = list(_cached_jsonl(str(META_PATH)))
+    chunk_lookup = _cached_chunk_lookup(str(CHUNKS_PATH))
+    embedder = _cached_embedder(model_name)
     qv = embedder.embed_query(query).astype(np.float32).reshape(1, -1)
 
     # Search normalized embeddings with inner product, then attach metadata and chunk text.

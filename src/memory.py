@@ -7,11 +7,13 @@ from typing import Any
 
 @dataclass
 class ChatTurn:
+    # Store only user-visible text so memory remains independent of frontend message ids.
     user: str
     assistant: str
 
 
 def normalize_chat_history(chat_history: list[Any] | None, max_turns: int = 3) -> list[ChatTurn]:
+    # Accept API dicts and internal ChatTurn objects, then cap memory to the configured recent window.
     if not chat_history:
         return []
 
@@ -33,6 +35,7 @@ def normalize_chat_history(chat_history: list[Any] | None, max_turns: int = 3) -
 
 
 def format_chat_history(turns: list[ChatTurn]) -> str:
+    # Label each turn so the LLM can distinguish prior user questions from assistant answers.
     if not turns:
         return ""
 
@@ -44,6 +47,7 @@ def format_chat_history(turns: list[ChatTurn]) -> str:
 
 
 def append_chat_turn(chat_history: list[ChatTurn], query: str, answer: str, max_turns: int = 3) -> list[ChatTurn]:
+    # Return a trimmed copy instead of mutating the caller's history list.
     updated = list(chat_history)
     updated.append(ChatTurn(user=query, assistant=answer))
     if max_turns <= 0:
@@ -52,6 +56,7 @@ def append_chat_turn(chat_history: list[ChatTurn], query: str, answer: str, max_
 
 
 def has_coreference(query: str) -> bool:
+    # Only rewrite follow-up questions that contain obvious pronouns or genre references.
     lowered = query.lower()
     markers = ("it", "this", "that", "they", "them", "their", "its")
     phrases = (
@@ -66,6 +71,7 @@ def has_coreference(query: str) -> bool:
 
 
 def extract_recent_topic(chat_history: list[ChatTurn]) -> str | None:
+    # Pull a compact topic from the newest usable user turn for follow-up query rewriting.
     if not chat_history:
         return None
 
@@ -89,6 +95,7 @@ def extract_recent_topic(chat_history: list[ChatTurn]) -> str | None:
 
 
 def rewrite_query_with_history(query: str, chat_history: list[ChatTurn]) -> tuple[str, bool]:
+    # Replace lightweight coreferences with the recent topic before vector retrieval runs.
     if not has_coreference(query):
         return query, False
 

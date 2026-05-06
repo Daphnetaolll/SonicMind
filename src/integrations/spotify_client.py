@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import os
 import re
+import time
+from functools import lru_cache
 from urllib import error, parse, request
 
 from src.music.recommendation_provider import get_recommendation_for_genre
@@ -11,6 +14,9 @@ from src.music.schemas import MusicRecommendationPlan, MusicTrackCandidate, Quer
 
 
 SPOTIFY_API_BASE = "https://api.spotify.com/v1"
+_TOKEN_CACHE: dict[str, float | str] = {"access_token": "", "expires_at": 0.0}
+_BACKOFF_UNTIL = 0.0
+logger = logging.getLogger(__name__)
 
 
 def spotify_credentials_ready() -> bool:
@@ -18,6 +24,11 @@ def spotify_credentials_ready() -> bool:
 
 
 def _get_access_token(timeout: int = 20) -> str:
+    cached_token = str(_TOKEN_CACHE.get("access_token") or "")
+    expires_at = float(_TOKEN_CACHE.get("expires_at") or 0.0)
+    if cached_token and time.time() < expires_at:
+        return cached_token
+
     client_id = os.getenv("SPOTIFY_CLIENT_ID")
     client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
     if not client_id or not client_secret:
@@ -46,10 +57,17 @@ def _get_access_token(timeout: int = 20) -> str:
     token = data.get("access_token")
     if not token:
         raise RuntimeError(f"Unexpected Spotify token response: {data}")
+    # Cache the client-credentials token so one answer does not request many identical tokens.
+    _TOKEN_CACHE["access_token"] = token
+    _TOKEN_CACHE["expires_at"] = time.time() + max(int(data.get("expires_in", 3600)) - 60, 60)
     return token
 
 
 def _api_get(path: str, params: dict[str, str] | None = None, *, timeout: int = 20) -> dict:
+    global _BACKOFF_UNTIL
+    if time.time() < _BACKOFF_UNTIL:
+        raise RuntimeError("Spotify is temporarily rate limited.")
+
     token = _get_access_token(timeout=timeout)
     query = f"?{parse.urlencode(params or {})}" if params else ""
     req = request.Request(
@@ -62,21 +80,37 @@ def _api_get(path: str, params: dict[str, str] | None = None, *, timeout: int = 
             return json.loads(resp.read().decode("utf-8"))
     except error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="ignore")
+        if exc.code == 429:
+            retry_after = exc.headers.get("Retry-After")
+            try:
+                delay = int(retry_after) if retry_after else 60
+            except ValueError:
+                delay = 60
+            _BACKOFF_UNTIL = time.time() + max(delay, 30)
+            logger.warning("Spotify rate limited SonicMind catalog lookup; backing off for %s seconds.", delay)
         raise RuntimeError(f"Spotify request failed: HTTP {exc.code} {detail}") from exc
     except error.URLError as exc:
         raise RuntimeError(f"Spotify request failed: {exc.reason}") from exc
 
 
-def search_items(query: str, item_types: list[str], *, limit: int = 5, market: str = "US") -> dict:
-    return _api_get(
+@lru_cache(maxsize=512)
+def _cached_search_items(query: str, item_types: str, limit: int, market: str) -> str:
+    # Cache read-only Spotify catalog searches within the backend process to avoid repeated rate pressure.
+    data = _api_get(
         "/search",
         {
             "q": query,
-            "type": ",".join(item_types),
+            "type": item_types,
             "limit": str(limit),
             "market": market,
         },
     )
+    return json.dumps(data)
+
+
+def search_items(query: str, item_types: list[str], *, limit: int = 5, market: str = "US") -> dict:
+    item_type_key = ",".join(item_types)
+    return json.loads(_cached_search_items(query, item_type_key, limit, market))
 
 
 def search_artist(name: str, *, market: str = "US") -> dict | None:
@@ -136,6 +170,7 @@ def build_artist_card(item: dict, *, source_entity: str | None = None) -> Spotif
         title=item.get("name", "Unknown artist"),
         subtitle=genres or "Spotify artist",
         spotify_url=url,
+        spotify_id=item_id,
         image_url=_image_url(item),
         embed_url=f"https://open.spotify.com/embed/artist/{item_id}",
         popularity=item.get("popularity"),
@@ -156,6 +191,7 @@ def build_track_card(item: dict, *, source_entity: str | None = None) -> Spotify
         title=item.get("name", "Unknown track"),
         subtitle=subtitle,
         spotify_url=url,
+        spotify_id=item_id,
         image_url=_image_url(item),
         embed_url=f"https://open.spotify.com/embed/track/{item_id}",
         popularity=item.get("popularity"),
@@ -174,6 +210,7 @@ def build_album_card(item: dict, *, source_entity: str | None = None) -> Spotify
         title=item.get("name", "Unknown album"),
         subtitle=artists or "Spotify album",
         spotify_url=url,
+        spotify_id=item_id,
         image_url=_image_url(item),
         embed_url=f"https://open.spotify.com/embed/album/{item_id}",
         source_entity=source_entity,
@@ -191,6 +228,7 @@ def build_playlist_card(item: dict, *, source_entity: str | None = None) -> Spot
         title=item.get("name", "Unknown playlist"),
         subtitle=owner or "Spotify playlist",
         spotify_url=url,
+        spotify_id=item_id,
         image_url=_image_url(item),
         embed_url=f"https://open.spotify.com/embed/playlist/{item_id}",
         source_entity=source_entity,
@@ -362,7 +400,7 @@ def build_spotify_cards_for_entities(
     target = query_understanding.spotify_display_target
     if target in {"representative_tracks", "optional_representative_tracks", "tracks"}:
         plan_cards: list[SpotifyCard] = []
-        if recommendation_plan and recommendation_plan.question_type in {"trending_tracks", "track_recommendation"}:
+        if recommendation_plan and recommendation_plan.question_type in {"trending_tracks", "track_recommendation", "playlist_discovery"}:
             # Current/track recommendation questions need dynamic evidence before any curated fallback.
             plan_cards = _track_cards_for_recommendation_plan(
                 recommendation_plan,
@@ -370,8 +408,11 @@ def build_spotify_cards_for_entities(
                 market=market,
             )
             cards.extend(plan_cards)
-        if recommendation_plan and recommendation_plan.question_type in {"trending_tracks", "track_recommendation"}:
-            return cards[:max_cards]
+        if recommendation_plan and recommendation_plan.question_type in {"trending_tracks", "track_recommendation", "playlist_discovery"}:
+            # If live/current-source discovery does not resolve exact Spotify tracks,
+            # fall back to curated genre examples instead of showing an empty player.
+            if cards:
+                return cards[:max_cards]
 
     if target in {"representative_tracks", "optional_representative_tracks"}:
         # Definition/profile pages should lead with curated representative tracks to avoid noisy search candidates.
