@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Iterable
 from urllib import error, request
 
+from backend.services.memory_logging import log_memory
 from src.evidence import AnswerSynthesis, Citation, EvidenceAssessment, EvidenceItem
 from src.memory import ChatTurn, format_chat_history
 from src.music.schemas import MusicRoutingResult
@@ -65,14 +66,27 @@ def format_context(results: Iterable[RetrievalResult]) -> str:
 def format_evidence_context(evidence: Iterable[EvidenceItem]) -> str:
     # Number evidence blocks so the model can return citation ids that map back to source cards.
     sections: list[str] = []
+    try:
+        remaining_chars = max(1200, int(os.getenv("MAX_CONTEXT_CHARS", "6000")))
+    except ValueError:
+        remaining_chars = 6000
     for idx, item in enumerate(evidence, start=1):
+        if remaining_chars <= 0:
+            break
+
         url = item.url or "n/a"
-        sections.append(
+        header = (
             f"[Evidence {idx}] "
             f"type={item.source_type} trust={item.trust_level} score={item.retrieval_score:.4f} "
             f"title={item.title} source={item.source_name} url={url}\n"
-            f"{item.full_text.strip()}"
         )
+        text_budget = max(0, remaining_chars - len(header))
+        full_text = item.full_text.strip()
+        if len(full_text) > text_budget:
+            full_text = full_text[:text_budget].rstrip() + "..."
+        block = f"{header}{full_text}"
+        sections.append(block)
+        remaining_chars -= len(block)
     return "\n\n".join(sections)
 
 
@@ -316,6 +330,7 @@ def call_chat_completion(
     if max_tokens:
         payload["max_tokens"] = max_tokens
 
+    log_memory("before_llm_call", model=config.model, max_tokens=max_tokens or 0)
     req = request.Request(
         url=f"{config.base_url}/chat/completions",
         data=json.dumps(payload).encode("utf-8"),
@@ -335,6 +350,7 @@ def call_chat_completion(
     except error.URLError as exc:
         raise RuntimeError(f"LLM request failed: {exc.reason}") from exc
 
+    log_memory("after_llm_call", response_bytes=len(raw))
     data = json.loads(raw)
     try:
         return data["choices"][0]["message"]["content"].strip()

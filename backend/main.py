@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import os
 
+from backend.services.memory_logging import log_memory
+
+log_memory("backend_module_start")
+
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -39,9 +43,11 @@ from src.services.quota_service import get_quota_status
 
 
 load_dotenv()
+log_memory("backend_after_imports")
 
 app = FastAPI(title="SonicMind API", version="0.1.0")
 security = HTTPBearer(auto_error=False)
+log_memory("backend_after_app_creation")
 
 
 def _cors_origins() -> list[str]:
@@ -102,10 +108,12 @@ def get_current_user(
 @app.get("/api/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     # Include knowledge-base readiness so deployment checks can catch missing generated artifacts.
+    ready = knowledge_base_ready()
+    log_memory("health_check", knowledge_base_ready=ready)
     return HealthResponse(
         status="ok",
         service="sonicmind-api",
-        knowledge_base_ready=knowledge_base_ready(),
+        knowledge_base_ready=ready,
     )
 
 
@@ -179,13 +187,16 @@ def register(payload: RegisterRequest) -> AuthResponse:
 @app.post("/api/chat", response_model=ChatResponse)
 def chat(payload: ChatRequest, current_user: AuthUser = Depends(get_current_user)) -> ChatResponse:
     # Validate cheap request preconditions before starting the charged question lifecycle.
+    log_memory("before_chat_request")
     question = payload.question.strip()
     if not question:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Question is required.",
         )
-    if not knowledge_base_ready():
+    ready = knowledge_base_ready()
+    log_memory("after_knowledge_base_ready_check", knowledge_base_ready=ready)
+    if not ready and os.getenv("RAG_FALLBACK_MODE", "keyword").strip().lower() not in {"llm_only", "keyword"}:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Knowledge base is not ready.",
@@ -204,6 +215,7 @@ def chat(payload: ChatRequest, current_user: AuthUser = Depends(get_current_user
 
     # The chat service owns logging, answer generation, and quota charging as one operation.
     try:
+        log_memory("before_answer_user_question", topk=quota.rag_top_k)
         service_result = answer_user_question(
             user_id=current_user.id,
             question=question,
@@ -212,12 +224,15 @@ def chat(payload: ChatRequest, current_user: AuthUser = Depends(get_current_user
             topk=quota.rag_top_k,
             max_history_turns=payload.max_history_turns,
         )
+        log_memory("after_answer_user_question")
     except Exception as exc:
+        log_memory("chat_request_failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=safe_error_message(exc, fallback="The question could not be answered right now."),
         ) from exc
 
+    log_memory("after_chat_request")
     return chat_result_to_response(question=question, service_result=service_result)
 
 

@@ -6,6 +6,7 @@ from src.evidence import EvidenceAssessment, EvidenceItem
 from src.retrievers import retrieve_local_evidence, retrieve_site_evidence, retrieve_web_evidence
 from src.retriever import RetrievalResult
 from src.services.evidence_service import assess_evidence_sufficiency
+from backend.services.memory_logging import log_memory
 
 
 @dataclass
@@ -28,12 +29,20 @@ def route_evidence(
     candidate_k: int,
     model_name: str,
 ) -> RoutingResult:
-    local_evidence, retrieved_documents, reranked_documents = retrieve_local_evidence(
-        query,
-        topk=topk,
-        candidate_k=candidate_k,
-        model_name=model_name,
-    )
+    log_memory("before_route_evidence", topk=topk, candidate_k=candidate_k)
+    try:
+        local_evidence, retrieved_documents, reranked_documents = retrieve_local_evidence(
+            query,
+            topk=topk,
+            candidate_k=candidate_k,
+            model_name=model_name,
+        )
+    except Exception as exc:
+        # Local retrieval is preferred, but production chat must degrade instead of crashing the process.
+        log_memory("local_evidence_unavailable", error_type=exc.__class__.__name__)
+        local_evidence = []
+        retrieved_documents = []
+        reranked_documents = []
     local_assessment = assess_evidence_sufficiency(query, local_evidence)
     route_steps = [f"local:{local_assessment.label.lower()}"]
 
@@ -56,6 +65,7 @@ def route_evidence(
         # External site search should degrade to local evidence instead of failing the whole answer.
         site_evidence = []
         route_steps.append("site:unavailable")
+    log_memory("after_site_evidence", count=len(site_evidence))
     combined_site = local_evidence + site_evidence
     site_assessment = assess_evidence_sufficiency(query, combined_site)
     if not route_steps[-1].startswith("site:"):
@@ -79,6 +89,7 @@ def route_evidence(
         # General web search is best-effort; preserve partial local/site answers on provider failures.
         web_evidence = []
         route_steps.append("web:unavailable")
+    log_memory("after_web_evidence", count=len(web_evidence))
     combined_web = combined_site + web_evidence
     final_assessment = assess_evidence_sufficiency(query, combined_web)
     if not route_steps[-1].startswith("web:"):

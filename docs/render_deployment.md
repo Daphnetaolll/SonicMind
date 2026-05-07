@@ -13,6 +13,7 @@ No real secrets belong in this repo. Add real values only in the Render dashboar
 Required files found:
 
 - `requirements.txt`
+- `requirements-production.txt`
 - `runtime.txt`
 - `.python-version`
 - `backend/main.py`
@@ -50,9 +51,9 @@ Create a Render Web Service from the repository root.
 Recommended settings:
 
 - Runtime: `Python`
-- Build Command: `pip install -r requirements.txt`
+- Build Command: `pip install -r requirements-production.txt`
 - Pre-Deploy Command: `python scripts/init_db.py`
-- Start Command: `python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+- Start Command: `python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT --workers 1`
 
 Environment variables:
 
@@ -63,6 +64,24 @@ LLM_API_KEY=<your backend-only LLM key>
 OPENAI_API_KEY=<optional backend-only OpenAI key>
 BACKEND_CORS_ORIGINS=https://<your-render-static-site>.onrender.com
 WEB_SEARCH_PROVIDER=tavily
+SONICMIND_RETRIEVAL_BACKEND=lexical
+SONICMIND_MEMORY_LOGS=true
+RAG_TOP_K=3
+RAG_CANDIDATE_K=12
+MAX_CONTEXT_CHARS=6000
+MAX_SOURCE_CHARS=2000
+ENABLE_RERANKER=false
+ENABLE_LOCAL_EMBEDDING_MODEL=false
+RAG_LOAD_ON_STARTUP=false
+RAG_FALLBACK_MODE=keyword
+WEB_CONCURRENCY=1
+MALLOC_ARENA_MAX=2
+OMP_NUM_THREADS=1
+OPENBLAS_NUM_THREADS=1
+MKL_NUM_THREADS=1
+NUMEXPR_NUM_THREADS=1
+TOKENIZERS_PARALLELISM=false
+PYTHONUNBUFFERED=1
 TAVILY_API_KEY=<optional backend-only Tavily key>
 SPOTIFY_CLIENT_ID=<optional backend-only Spotify client id>
 SPOTIFY_CLIENT_SECRET=<optional backend-only Spotify client secret>
@@ -136,6 +155,68 @@ For multiple frontend origins:
 BACKEND_CORS_ORIGINS=https://frontend-url.onrender.com,https://preview-url.onrender.com
 ```
 
+For the current SonicMind Render deployment, the frontend origin is:
+
+```text
+BACKEND_CORS_ORIGINS=https://sonicmind.onrender.com
+```
+
+If registration or login shows Axios `Network Error`, verify the API service env var
+uses the frontend origin only. Do not include paths such as `/register`, and restart
+or redeploy the API after saving the env var.
+
+## Production Retrieval Mode
+
+The deployed API defaults to lightweight lexical retrieval for the small included
+knowledge base. This avoids cold-loading large sentence-transformer models on
+memory-constrained Render instances during user chat requests.
+
+The backend Render service should install `requirements-production.txt`, not the
+full local `requirements.txt`. Production lexical chat does not need Streamlit,
+FAISS, torch, transformers, or sentence-transformers at runtime.
+
+Keep these defaults for a 2 GB Render web service:
+
+```text
+SONICMIND_RETRIEVAL_BACKEND=lexical
+ENABLE_LOCAL_EMBEDDING_MODEL=false
+ENABLE_RERANKER=false
+RAG_LOAD_ON_STARTUP=false
+RAG_TOP_K=3
+RAG_CANDIDATE_K=12
+MAX_CONTEXT_CHARS=6000
+MAX_SOURCE_CHARS=2000
+```
+
+Only set this if the service has enough memory and a warmed model cache:
+
+```text
+SONICMIND_RETRIEVAL_BACKEND=faiss
+ENABLE_LOCAL_EMBEDDING_MODEL=true
+```
+
+Semantic FAISS retrieval uses the same embedding model that built the index.
+Switching query embeddings to a different provider requires rebuilding
+`data/index/faiss.index` with matching embedding dimensions.
+
+Memory diagnostics are safe to leave on during debugging:
+
+```text
+SONICMIND_MEMORY_LOGS=true
+```
+
+Render logs will include entries like:
+
+```text
+[MEMORY] stage=before_chat_request rss_mb=...
+[MEMORY] stage=before_faiss_load rss_mb=...
+[MEMORY] stage=before_embedding_model_load rss_mb=...
+[MEMORY] stage=before_llm_call rss_mb=...
+```
+
+If the instance still OOMs, paste only the memory log lines and Render OOM event
+around one `/api/chat` request. Do not paste secret env vars.
+
 ## Optional Blueprint
 
 This repo includes `render.yaml` with placeholders only. If you use Render Blueprints, update service names and URLs after creation:
@@ -176,9 +257,9 @@ On Render, `python -m pytest` and `python -m uvicorn` run in Render's installed 
 Backend:
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements-production.txt
 python scripts/init_db.py
-python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT --workers 1
 ```
 
 Frontend:

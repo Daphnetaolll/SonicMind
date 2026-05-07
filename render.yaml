@@ -11,9 +11,9 @@ services:
     name: sonicmind-api
     runtime: python
     plan: starter
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements-production.txt
     preDeployCommand: python scripts/init_db.py
-    startCommand: python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    startCommand: python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT --workers 1
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -26,9 +26,46 @@ services:
       - key: OPENAI_API_KEY
         sync: false
       - key: BACKEND_CORS_ORIGINS
-        value: https://sonicmind-frontend.onrender.com
+        # Include every browser origin that hosts the React app; CORS compares exact origins.
+        value: https://sonicmind.onrender.com,https://sonicmind-frontend.onrender.com
       - key: WEB_SEARCH_PROVIDER
         value: tavily
+      - key: SONICMIND_RETRIEVAL_BACKEND
+        value: lexical
+      - key: SONICMIND_MEMORY_LOGS
+        value: "true"
+      - key: RAG_TOP_K
+        value: "3"
+      - key: RAG_CANDIDATE_K
+        value: "12"
+      - key: MAX_CONTEXT_CHARS
+        value: "6000"
+      - key: MAX_SOURCE_CHARS
+        value: "2000"
+      - key: ENABLE_RERANKER
+        value: "false"
+      - key: ENABLE_LOCAL_EMBEDDING_MODEL
+        value: "false"
+      - key: RAG_LOAD_ON_STARTUP
+        value: "false"
+      - key: RAG_FALLBACK_MODE
+        value: keyword
+      - key: WEB_CONCURRENCY
+        value: "1"
+      - key: MALLOC_ARENA_MAX
+        value: "2"
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: OPENBLAS_NUM_THREADS
+        value: "1"
+      - key: MKL_NUM_THREADS
+        value: "1"
+      - key: NUMEXPR_NUM_THREADS
+        value: "1"
+      - key: TOKENIZERS_PARALLELISM
+        value: "false"
+      - key: PYTHONUNBUFFERED
+        value: "1"
       - key: TAVILY_API_KEY
         sync: false
       - key: SPOTIFY_CLIENT_ID

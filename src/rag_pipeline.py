@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Any
 
+from backend.services.memory_logging import log_memory
 from src.embeddings import DEFAULT_EMBEDDING_MODEL
 from src.evidence import AnswerSynthesis, Citation, EvidenceAssessment, EvidenceItem
 from src.generator import (
@@ -63,6 +65,13 @@ class RAGPipelineResult:
     music_routing: MusicRoutingResult
 
 
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+
+
 def answer_question(
     query: str,
     chat_history: list[Any] | None = None,
@@ -78,21 +87,27 @@ def answer_question(
     playlist_style: bool = False,
 ) -> RAGPipelineResult:
     # Normalize recent chat and rewrite coreferences before retrieval so follow-up questions stay grounded.
+    log_memory("rag_pipeline_start", requested_topk=topk)
     history = normalize_chat_history(chat_history, max_turns=max_history_turns)
     support_answer = get_support_answer(query)
     if support_answer:
         # Product/support prompts use app-owned facts instead of broader web retrieval or Spotify routing.
         return _support_result(query, support_answer, history, max_history_turns, topk, candidate_k or max(topk * 4, 12))
 
-    effective_candidate_k = candidate_k or max(topk * 4, 12)
+    topk_limit = max(1, _env_int("RAG_TOP_K", 3))
+    candidate_limit = max(1, _env_int("RAG_CANDIDATE_K", 12))
+    effective_topk = max(1, min(topk, topk_limit))
+    effective_candidate_k = min(candidate_k or max(effective_topk * 4, 12), candidate_limit)
     retrieval_query, query_rewritten = rewrite_query_with_history(query, history)
 
+    log_memory("before_route_evidence_call", topk=effective_topk, candidate_k=effective_candidate_k)
     routing = route_evidence(
         retrieval_query,
-        topk=topk,
+        topk=effective_topk,
         candidate_k=effective_candidate_k,
         model_name=model_name,
     )
+    log_memory("after_route_evidence_call", used_evidence=len(routing.used_evidence))
     # Build music-specific structure before synthesis so the written answer and Spotify cards share candidates.
     music_routing = build_music_response(
         query,
@@ -101,7 +116,9 @@ def answer_question(
         spotify_limit=spotify_limit,
         playlist_style=playlist_style,
     )
-    config = llm_config or LLMConfig.from_env()
+    log_memory("after_music_response", spotify_cards=len(music_routing.spotify_cards))
+    config = llm_config
+    log_memory("before_synthesize_answer")
     synthesis = synthesize_answer(
         query,
         routing.used_evidence,
@@ -112,6 +129,7 @@ def answer_question(
         music_routing=music_routing,
         max_answer_tokens=max_answer_tokens,
     )
+    log_memory("after_synthesize_answer")
     updated_history = append_chat_turn(history, query, synthesis.answer, max_turns=max_history_turns)
 
     # Return both final UI fields and diagnostic artifacts for sources, routing, and debugging.
@@ -121,7 +139,7 @@ def answer_question(
         query_rewritten=query_rewritten,
         answer=synthesis.answer,
         candidate_k=effective_candidate_k,
-        topk=topk,
+        topk=effective_topk,
         chat_history=history,
         updated_chat_history=updated_history,
         history_context="\n".join(

@@ -23,3 +23,5 @@ data/music/generated_recommendations.json
 # frontend
 frontend/node_modules/
 frontend/dist/
+frontend/playwright-report/
+frontend/test-results/
