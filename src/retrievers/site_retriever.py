@@ -6,6 +6,7 @@ import re
 from urllib import error, parse, request
 
 from src.evidence import EvidenceItem
+from src.music.query_understanding import understand_query
 from src.retrievers.http_search import chunk_text, domain_from_url, fetch_text, strip_html
 from src.retrievers.search_api import search_web
 from src.retrievers.trusted_sources import TRUSTED_MUSIC_SOURCES, search_api_sources, source_for_domain
@@ -28,6 +29,7 @@ STOPWORDS = {
     "their",
     "this",
     "what",
+    "who",
     "which",
 }
 
@@ -67,6 +69,44 @@ def _is_low_quality_search_hit(query: str, title: str, snippet: str) -> bool:
     return not _matches_query_topic(query, title, snippet)
 
 
+def _artist_profile_lookup_query(query: str) -> str | None:
+    # Reuse music intent parsing so "who is X" searches for X instead of the whole question.
+    understanding = understand_query(query)
+    if understanding.primary_entity_type != "artist":
+        return None
+    for entity in understanding.entities:
+        if entity.type == "artist" and entity.name:
+            return entity.name
+    return None
+
+
+def _artist_search_query(artist_name: str) -> str:
+    # Bias trusted-source search toward music-profile pages when the user supplies only a name.
+    return f'"{artist_name}" music artist DJ producer'
+
+
+def _artist_name_tokens(name: str) -> set[str]:
+    # Artist profile lookups should require the requested name tokens, not just a shared surname.
+    return {
+        token
+        for token in re.findall(r"[a-z0-9][a-z0-9\-]+", name.lower())
+        if token not in {"dj", "producer", "artist", "music"} and len(token) > 1
+    }
+
+
+def _filter_artist_name_matches(evidence: list[EvidenceItem], artist_name: str) -> list[EvidenceItem]:
+    required = _artist_name_tokens(artist_name)
+    if not required:
+        return evidence
+
+    filtered: list[EvidenceItem] = []
+    for item in evidence:
+        title_tokens = _artist_name_tokens(item.title)
+        if required.issubset(title_tokens):
+            filtered.append(item)
+    return filtered
+
+
 def _json_get(url: str, *, headers: dict[str, str] | None = None) -> dict:
     merged_headers = {"Accept": "application/json", "User-Agent": _user_agent()}
     if headers:
@@ -78,6 +118,65 @@ def _json_get(url: str, *, headers: dict[str, str] | None = None) -> dict:
             return json.loads(resp.read().decode("utf-8"))
     except (error.HTTPError, error.URLError, json.JSONDecodeError):
         return {}
+
+
+def _spotify_artist_evidence(query: str, *, max_results: int = 1) -> list[EvidenceItem]:
+    # Spotify artist metadata is lightweight enough for Render and helps canonicalize misspelled artist names.
+    from src.integrations.spotify_client import get_artist_top_tracks, search_artist, spotify_credentials_ready
+
+    if not spotify_credentials_ready():
+        return []
+
+    try:
+        artist = search_artist(query)
+    except Exception:
+        return []
+    if not artist:
+        return []
+
+    name = artist.get("name") or query
+    genres = ", ".join(artist.get("genres", [])[:6])
+    popularity = artist.get("popularity")
+    followers = artist.get("followers", {}).get("total")
+    spotify_url = artist.get("external_urls", {}).get("spotify")
+    artist_id = artist.get("id")
+    top_tracks: list[str] = []
+    if artist_id:
+        try:
+            for track in get_artist_top_tracks(artist_id)[:5]:
+                track_name = track.get("name")
+                if track_name:
+                    top_tracks.append(track_name)
+        except Exception:
+            top_tracks = []
+
+    text_parts = [
+        f"Spotify artist result: {name}.",
+        f"Genres: {genres}." if genres else "",
+        f"Popularity score: {popularity}." if popularity is not None else "",
+        f"Followers: {followers}." if followers is not None else "",
+        f"Top tracks include: {', '.join(top_tracks)}." if top_tracks else "",
+    ]
+    text = " ".join(part for part in text_parts if part)
+    return [
+        EvidenceItem(
+            rank=1,
+            source_type="site",
+            source_name="Spotify",
+            title=name,
+            snippet=text,
+            full_text=text,
+            retrieval_score=0.86,
+            trust_level="medium",
+            url=spotify_url,
+            metadata={
+                "purpose": "Artist catalog metadata and top-track signals",
+                "access_mode": "official_api",
+                "entity": "artist",
+                "genres": genres,
+            },
+        )
+    ][:max_results]
 
 
 def _musicbrainz_evidence(query: str, *, max_results: int = 3) -> list[EvidenceItem]:
@@ -202,12 +301,18 @@ def _discogs_evidence(query: str, *, max_results: int = 3) -> list[EvidenceItem]
     return evidence
 
 
-def _whitelisted_search_evidence(query: str, *, max_results: int = 4) -> list[EvidenceItem]:
+def _whitelisted_search_evidence(
+    query: str,
+    *,
+    max_results: int = 4,
+    topic_query: str | None = None,
+) -> list[EvidenceItem]:
     sources = search_api_sources()
     allowed_domains = {domain for source in sources for domain in source.domains}
-    if not allowed_domains:
+    if not allowed_domains or max_results <= 0:
         return []
 
+    filter_query = topic_query or query
     site_terms = " OR ".join(f"site:{source.domains[0]}" for source in sources)
     hits = search_web(
         f"{query} ({site_terms})",
@@ -220,7 +325,7 @@ def _whitelisted_search_evidence(query: str, *, max_results: int = 4) -> list[Ev
         source = source_for_domain(domain_from_url(hit.url))
         if not source:
             continue
-        if _is_low_quality_search_hit(query, hit.title, hit.snippet):
+        if _is_low_quality_search_hit(filter_query, hit.title, hit.snippet):
             continue
 
         full_text = hit.snippet
@@ -257,9 +362,30 @@ def _whitelisted_search_evidence(query: str, *, max_results: int = 4) -> list[Ev
 
 def retrieve_site_evidence(query: str, *, max_results: int = 6, timeout: int = 12) -> list[EvidenceItem]:
     evidence = []
-    evidence.extend(_musicbrainz_evidence(query, max_results=2))
-    evidence.extend(_discogs_evidence(query, max_results=2))
-    evidence.extend(_whitelisted_search_evidence(query, max_results=max(0, max_results - len(evidence))))
+    artist_lookup = _artist_profile_lookup_query(query)
+    lookup_query = artist_lookup or query
+    search_query = _artist_search_query(lookup_query) if artist_lookup else query
+
+    spotify_evidence = _spotify_artist_evidence(lookup_query, max_results=1) if artist_lookup else []
+    evidence.extend(spotify_evidence)
+    if spotify_evidence:
+        lookup_query = spotify_evidence[0].title
+        search_query = _artist_search_query(lookup_query)
+
+    musicbrainz_evidence = _musicbrainz_evidence(lookup_query, max_results=2)
+    discogs_evidence = _discogs_evidence(lookup_query, max_results=2)
+    if artist_lookup:
+        musicbrainz_evidence = _filter_artist_name_matches(musicbrainz_evidence, lookup_query)
+        discogs_evidence = _filter_artist_name_matches(discogs_evidence, lookup_query)
+    evidence.extend(musicbrainz_evidence)
+    evidence.extend(discogs_evidence)
+    evidence.extend(
+        _whitelisted_search_evidence(
+            search_query,
+            max_results=max(0, max_results - len(evidence)),
+            topic_query=lookup_query,
+        )
+    )
 
     return [
         EvidenceItem(

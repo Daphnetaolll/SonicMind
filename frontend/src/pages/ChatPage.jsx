@@ -38,6 +38,11 @@ function flattenTurns(turns, latestResponse) {
   return messages;
 }
 
+function asHistoryArray(value) {
+  // Saved JSON fields may come back null from older records, so restore only list-shaped artifacts.
+  return Array.isArray(value) ? value : [];
+}
+
 export default function ChatPage() {
   const queryClient = useQueryClient();
   const {
@@ -57,6 +62,7 @@ export default function ChatPage() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
+  const [activeHistoryId, setActiveHistoryId] = useState('');
   const [limitDetail, setLimitDetail] = useState(null);
   const [comingSoonMessage, setComingSoonMessage] = useState('');
 
@@ -91,6 +97,7 @@ export default function ChatPage() {
       setChatTurns(data.chat_history);
       setQuestion('');
       setPendingQuestion('');
+      setActiveHistoryId('');
       queryClient.invalidateQueries({ queryKey: ['account-status'] });
       queryClient.invalidateQueries({ queryKey: ['history'] });
     },
@@ -105,7 +112,10 @@ export default function ChatPage() {
 
   const clearHistoryMutation = useMutation({
     mutationFn: deleteHistory,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['history'] }),
+    onSuccess: () => {
+      setActiveHistoryId('');
+      queryClient.invalidateQueries({ queryKey: ['history'] });
+    },
   });
 
   const favoriteMutation = useMutation({
@@ -152,6 +162,28 @@ export default function ChatPage() {
   const handleClear = () => {
     clearConversation();
     setLatestResponse(null);
+    setActiveHistoryId('');
+  };
+
+  const handleRestoreHistory = (item) => {
+    // Rehydrate a saved answer into the same state shape that a fresh chat response uses.
+    setActiveHistoryId(item.id);
+    setPendingQuestion('');
+    setQuestion('');
+    setChatTurns([
+      {
+        user: item.question,
+        assistant: item.answer,
+      },
+    ]);
+    setLatestResponse({
+      question: item.question,
+      answer: item.answer,
+      sources: asHistoryArray(item.sources_json),
+      route_steps: [],
+      spotify_cards: asHistoryArray(item.spotify_results_json),
+      spotify_error: null,
+    });
   };
 
   const responseUsage = latestResponse?.current_plan
@@ -299,6 +331,8 @@ export default function ChatPage() {
                       history={historyQuery.data}
                       onClear={() => clearHistoryMutation.mutate()}
                       isClearing={clearHistoryMutation.isPending}
+                      onRestore={handleRestoreHistory}
+                      activeHistoryId={activeHistoryId}
                     />
                   </div>
                 ) : null}
