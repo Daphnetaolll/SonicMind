@@ -73,15 +73,24 @@ def test_drum_and_bass_alias_routes_to_known_genre() -> None:
 
 def test_who_is_unknown_artist_routes_to_artist_profile() -> None:
     # Artist-profile phrasing should use lightweight external metadata instead of generic local-only retrieval.
+<<<<<<< HEAD
     result = understand_query("who is john summit")
 
     assert result.intent == "artist_profile"
     assert result.primary_entity_type == "artist"
     assert result.entities[0].name == "John Summit"
+=======
+    result = understand_query("who is lily palmer")
+
+    assert result.intent == "artist_profile"
+    assert result.primary_entity_type == "artist"
+    assert result.entities[0].name == "Lily Palmer"
+>>>>>>> f1eee7b0974a05ed99f48f787a7339e8bc6a9c19
     assert result.needs_spotify is True
     assert result.spotify_display_target == "artist_top_tracks"
 
 
+<<<<<<< HEAD
 def test_artist_popular_album_query_routes_to_artist_albums() -> None:
     # Album follow-ups rewritten with an artist name should request Spotify album cards for that artist.
     result = understand_query("recommand me ISOxo's popular album")
@@ -92,6 +101,8 @@ def test_artist_popular_album_query_routes_to_artist_albums() -> None:
     assert result.spotify_display_target == "albums"
 
 
+=======
+>>>>>>> f1eee7b0974a05ed99f48f787a7339e8bc6a9c19
 def test_tell_me_about_genre_stays_genre_explanation() -> None:
     # Genre questions that look like profile prompts should still route to genre answers.
     result = understand_query("tell me about house music")

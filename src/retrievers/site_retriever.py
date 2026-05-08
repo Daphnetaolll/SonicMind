@@ -70,7 +70,11 @@ def _is_low_quality_search_hit(query: str, title: str, snippet: str) -> bool:
 
 
 def _artist_profile_lookup_query(query: str) -> str | None:
+<<<<<<< HEAD
     # Reuse music intent parsing so artist questions search for the artist name, not the whole sentence.
+=======
+    # Reuse music intent parsing so "who is X" searches for X instead of the whole question.
+>>>>>>> f1eee7b0974a05ed99f48f787a7339e8bc6a9c19
     understanding = understand_query(query)
     if understanding.primary_entity_type != "artist":
         return None
@@ -121,7 +125,11 @@ def _json_get(url: str, *, headers: dict[str, str] | None = None) -> dict:
 
 
 def _spotify_artist_evidence(query: str, *, max_results: int = 1) -> list[EvidenceItem]:
+<<<<<<< HEAD
     # Spotify artist metadata is lightweight enough for Render and helps canonicalize artist spellings.
+=======
+    # Spotify artist metadata is lightweight enough for Render and helps canonicalize misspelled artist names.
+>>>>>>> f1eee7b0974a05ed99f48f787a7339e8bc6a9c19
     from src.integrations.spotify_client import get_artist_top_tracks, search_artist, spotify_credentials_ready
 
     if not spotify_credentials_ready():
