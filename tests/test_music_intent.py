@@ -71,6 +71,26 @@ def test_drum_and_bass_alias_routes_to_known_genre() -> None:
     assert result.needs_spotify is True
 
 
+def test_who_is_unknown_artist_routes_to_artist_profile() -> None:
+    # Artist-profile phrasing should use lightweight external metadata instead of generic local-only retrieval.
+    result = understand_query("who is lily palmer")
+
+    assert result.intent == "artist_profile"
+    assert result.primary_entity_type == "artist"
+    assert result.entities[0].name == "Lily Palmer"
+    assert result.needs_spotify is True
+    assert result.spotify_display_target == "artist_top_tracks"
+
+
+def test_tell_me_about_genre_stays_genre_explanation() -> None:
+    # Genre questions that look like profile prompts should still route to genre answers.
+    result = understand_query("tell me about house music")
+
+    assert result.intent == "genre_explanation"
+    assert result.primary_entity_type == "genre"
+    assert result.genre_hint == "house"
+
+
 def test_recent_dance_music_plan_falls_back_to_concrete_representative_tracks(monkeypatch) -> None:
     # If live chart search has no exact artist-track pairs, return concrete tracks with a caution note.
     def fake_search_web(*_args, **_kwargs):
