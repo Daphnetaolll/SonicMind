@@ -58,7 +58,7 @@ def append_chat_turn(chat_history: list[ChatTurn], query: str, answer: str, max_
 def has_coreference(query: str) -> bool:
     # Only rewrite follow-up questions that contain obvious pronouns or genre references.
     lowered = query.lower()
-    markers = ("it", "this", "that", "they", "them", "their", "its")
+    markers = ("he", "her", "him", "his", "it", "she", "this", "that", "they", "them", "their", "its")
     phrases = (
         "this genre",
         "that genre",
@@ -77,6 +77,7 @@ def extract_recent_topic(chat_history: list[ChatTurn]) -> str | None:
 
     patterns = [
         r"what is\s+([A-Za-z][A-Za-z0-9&+\- ]{1,40})",
+        r"who is\s+([A-Za-z][A-Za-z0-9&+\- ]{1,40})",
         r"tell me about\s+([A-Za-z][A-Za-z0-9&+\- ]{1,40})",
         r"explain\s+([A-Za-z][A-Za-z0-9&+\- ]{1,40})",
         r"\b([A-Za-z][A-Za-z0-9&+\- ]{1,40}\s+music)\b",
@@ -113,6 +114,11 @@ def rewrite_query_with_history(query: str, chat_history: list[ChatTurn]) -> tupl
         (r"\bthat music\b", topic),
         (r"\bit\b", topic),
         (r"\bits\b", f"{topic}'s"),
+        (r"\bhe\b", topic),
+        (r"\bhim\b", topic),
+        (r"\bhis\b", f"{topic}'s"),
+        (r"\bshe\b", topic),
+        (r"\bher\b", f"{topic}'s"),
         (r"\btheir\b", f"{topic}'s"),
     ]
     for pattern, value in replacements:

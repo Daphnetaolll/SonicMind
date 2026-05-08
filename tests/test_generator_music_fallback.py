@@ -5,6 +5,13 @@ import json
 from src.evidence import EvidenceAssessment, EvidenceItem
 from src.generator import LLMConfig, synthesize_answer
 from src.music.music_router import build_music_response
+from src.music.schemas import (
+    MusicRecommendationPlan,
+    MusicRoutingResult,
+    QueryUnderstandingResult,
+    RankedMusicEntity,
+    SpotifyCard,
+)
 
 
 def test_synthesis_replaces_generic_recent_dance_answer_with_track_candidates(monkeypatch) -> None:
@@ -60,3 +67,73 @@ def test_synthesis_replaces_generic_recent_dance_answer_with_track_candidates(mo
     assert "source-grounded representative picks" in synthesis.answer
     assert "house music is a prominent genre" not in synthesis.answer
     assert synthesis.certainty == "PARTIAL"
+
+
+def test_synthesis_replaces_generic_album_answer_with_spotify_album_card(monkeypatch) -> None:
+    # Album cards should rescue follow-up album answers that the LLM phrases as missing evidence.
+    def fake_call_chat_completion(**_kwargs):
+        return json.dumps(
+            {
+                "answer": "I couldn't find specific information about a popular album by ISOxo.",
+                "certainty": "PARTIAL",
+                "uncertainty_note": "No album was mentioned in the evidence.",
+                "citations": [1],
+            }
+        )
+
+    monkeypatch.setattr("src.generator.call_chat_completion", fake_call_chat_completion)
+
+    evidence = [
+        EvidenceItem(
+            rank=1,
+            source_type="site",
+            source_name="Spotify",
+            title="ISOxo",
+            snippet="Spotify artist result: ISOxo.",
+            full_text="Spotify artist result: ISOxo. Top tracks include: dontstopme!.",
+            retrieval_score=0.86,
+            trust_level="medium",
+            metadata={"entity": "artist"},
+        )
+    ]
+    assessment = EvidenceAssessment(
+        label="PARTIAL",
+        reasons=["Artist evidence is available, but album evidence is limited."],
+        evidence_count=1,
+        top_score=0.86,
+        keyword_coverage=0.5,
+    )
+    music_routing = MusicRoutingResult(
+        query_understanding=QueryUnderstandingResult(
+            intent="album_recommendation",
+            primary_entity_type="artist",
+            genre_hint=None,
+            entities=[],
+            needs_resolution=False,
+            needs_spotify=True,
+            spotify_display_target="albums",
+        ),
+        resolved_entities=[],
+        ranked_entities=[RankedMusicEntity(name="ISOxo", type="artist", score=0.9, reason="test")],
+        recommendation_plan=MusicRecommendationPlan(question_type="none", genre_hint=None, time_window=None),
+        spotify_cards=[
+            SpotifyCard(
+                card_type="album",
+                title="kidsgonemad!",
+                subtitle="ISOxo",
+                spotify_url="https://open.spotify.com/album/album-1",
+                source_entity="ISOxo",
+            )
+        ],
+    )
+
+    synthesis = synthesize_answer(
+        "recommand me ISOxo's popular album",
+        evidence,
+        assessment,
+        config=LLMConfig(api_key="test", model="test"),
+        music_routing=music_routing,
+    )
+
+    assert "kidsgonemad!" in synthesis.answer
+    assert "couldn't find specific information" not in synthesis.answer

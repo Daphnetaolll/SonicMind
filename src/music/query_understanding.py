@@ -49,6 +49,18 @@ GENRE_QUERY_FILLERS = {
     "top",
     "trending",
 }
+ARTIST_PROFILE_PATTERNS = (
+    r"\bwho(?:\s+is|['’]s)\s+(?P<name>[^?!.]+)",
+    r"\btell\s+me\s+about\s+(?P<name>[^?!.]+)",
+    r"\bwhat\s+do\s+you\s+know\s+about\s+(?P<name>[^?!.]+)",
+    r"(?:介绍一下|介紹一下|介绍|介紹|谁是|誰是)\s*(?P<name>[A-Za-z0-9&'’.\- ]{2,80})",
+)
+ALBUM_ARTIST_PATTERNS = (
+    r"\b(?P<name>[A-Za-z0-9&'’.\- ]{2,80})['’]s\s+(?:popular\s+|best\s+|top\s+)?albums?\b",
+    r"\b(?:popular|best|top|recommend(?:ed)?)\s+albums?\s+(?:by|from)\s+(?P<name>[A-Za-z0-9&'’.\- ]{2,80})",
+    r"\balbums?\s+(?:by|from)\s+(?P<name>[A-Za-z0-9&'’.\- ]{2,80})",
+)
+ENTITY_NAME_PARTICLES = {"and", "of", "de", "del", "da", "van", "von", "&"}
 
 MOOD_GENRE_HINTS = (
     (("dark", "minimal", "hypnotic", "underground", "暗黑", "极简", "極簡", "深夜", "凌晨"), "minimal techno"),
@@ -87,6 +99,57 @@ def _known_genre_in_text(text: str) -> str | None:
         return "electronic music"
     if lowered.strip() in GENRE_ALIASES:
         return GENRE_ALIASES[lowered.strip()]
+    return None
+
+
+def _display_entity_name(candidate: str) -> str:
+    # Preserve user capitalization when present; otherwise make extracted artist names readable.
+    if any(char.isupper() for char in candidate):
+        return candidate
+
+    words: list[str] = []
+    for word in candidate.split():
+        lowered = word.lower()
+        if lowered in ENTITY_NAME_PARTICLES:
+            words.append(lowered)
+        elif lowered == "dj":
+            words.append("DJ")
+        else:
+            words.append(word[:1].upper() + word[1:])
+    return " ".join(words)
+
+
+def _clean_artist_candidate(candidate: str) -> str | None:
+    # Strip prompt scaffolding without removing artist names such as "DJ Seinfeld".
+    cleaned = re.sub(r"\s+", " ", candidate).strip(" ?.!,:;\"'")
+    cleaned = re.sub(r"^(?:recommend|recommand|show|give|find|play)(?:\s+me)?\s+", "", cleaned, flags=re.I)
+    cleaned = re.sub(r"^(?:the\s+artist\s+|artist\s+|producer\s+)", "", cleaned, flags=re.I)
+    cleaned = re.sub(r"\s+(?:in|from|for)\s+(?:music|techno|house|edm|electronic music).*$", "", cleaned, flags=re.I)
+    cleaned = cleaned.strip(" ?.!,:;\"'")
+    if not cleaned or len(cleaned) < 3:
+        return None
+
+    lowered = cleaned.lower()
+    if lowered in {"album", "artist", "producer", "dj", "music", "this", "that", "it"}:
+        return None
+    if _known_genre_in_text(cleaned):
+        return None
+    if re.search(r"\b(?:album|albums|genre|style|scene|music|track|tracks|song|songs)\b", lowered):
+        return None
+    if not re.search(r"[A-Za-z]", cleaned):
+        return None
+    return _display_entity_name(cleaned)
+
+
+def _detect_artist_from_patterns(query: str, patterns: tuple[str, ...]) -> str | None:
+    # Keep artist-name extraction centralized so profile and album prompts resolve consistently.
+    for pattern in patterns:
+        match = re.search(pattern, query, flags=re.I)
+        if not match:
+            continue
+        candidate = _clean_artist_candidate(match.group("name"))
+        if candidate:
+            return candidate
     return None
 
 
@@ -166,6 +229,11 @@ def understand_query(query: str) -> QueryUnderstandingResult:
     lowered = query.lower()
     entities = _extract_known_entities(query)
     genre_hint = _detect_mood_genre(query) or _detect_genre(query)
+    profile_artist_name = _detect_artist_from_patterns(query, ARTIST_PROFILE_PATTERNS) if not genre_hint else None
+    album_artist_name = _detect_artist_from_patterns(query, ALBUM_ARTIST_PATTERNS)
+    detected_artist_name = album_artist_name or profile_artist_name
+    if detected_artist_name and not any(item.name.lower() == detected_artist_name.lower() for item in entities):
+        entities.append(MusicEntityMention(name=detected_artist_name, type="artist", confidence=0.66))
 
     is_comparison = _contains_any(lowered, ("difference between", "compare", "vs", "versus", "区别", "对比"))
     is_recommendation = _contains_any(
@@ -247,6 +315,16 @@ def understand_query(query: str) -> QueryUnderstandingResult:
         intent = "track_recommendation"
         primary_entity_type = "track"
         display_target = "tracks"
+        needs_spotify = True
+    elif album_artist_name and _contains_any(lowered, ("album", "albums", "专辑")):
+        intent = "album_recommendation"
+        primary_entity_type = "artist"
+        display_target = "albums"
+        needs_spotify = True
+    elif profile_artist_name:
+        intent = "artist_profile"
+        primary_entity_type = "artist"
+        display_target = "artist_top_tracks"
         needs_spotify = True
     elif _contains_any(lowered, ("artist", "artists", "producer", "dj", "艺人", "制作人")):
         intent = "artist_recommendation" if is_recommendation else "artist_profile"

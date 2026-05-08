@@ -104,7 +104,7 @@ def answer_question(
     log_memory("after_route_evidence_call", used_evidence=len(routing.used_evidence))
     # Build music-specific structure before synthesis so the written answer and Spotify cards share candidates.
     music_routing = build_music_response(
-        query,
+        retrieval_query,
         "",
         routing.used_evidence,
         spotify_limit=spotify_limit,

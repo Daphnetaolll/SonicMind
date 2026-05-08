@@ -148,6 +148,19 @@ def get_artist_top_tracks(artist_id: str, *, market: str = "US") -> list[dict]:
     return data.get("tracks", [])
 
 
+def get_artist_albums(artist_id: str, *, market: str = "US", limit: int = 20) -> list[dict]:
+    # Artist album lookup stays in Spotify's lightweight Web API instead of using local ML retrieval.
+    data = _api_get(
+        f"/artists/{artist_id}/albums",
+        {
+            "include_groups": "album,single",
+            "limit": str(limit),
+            "market": market,
+        },
+    )
+    return data.get("items", [])
+
+
 def _image_url(item: dict) -> str | None:
     images = item.get("images") or item.get("album", {}).get("images") or []
     if not images:
@@ -385,6 +398,73 @@ def _artist_top_track_cards(artist_name: str, *, max_tracks: int, market: str) -
     return cards
 
 
+def _album_sort_key(item: dict) -> tuple[int, str]:
+    # Prefer full albums, then newest releases when top-track evidence is not enough.
+    album_type = item.get("album_type") or item.get("type") or ""
+    priority = 0 if album_type == "album" else 1
+    return priority, str(item.get("release_date") or "")
+
+
+def _album_artists_text(item: dict) -> str:
+    return " ".join(artist.get("name", "") for artist in item.get("artists", []) if artist.get("name"))
+
+
+def _artist_album_cards(artist_name: str, *, max_albums: int, market: str) -> list[SpotifyCard]:
+    # Use top-track album frequency as a popularity proxy, then fill from artist albums if needed.
+    artist = search_artist(artist_name, market=market)
+    if not artist:
+        return []
+
+    albums_by_id: dict[str, dict] = {}
+    popularity_counts: dict[str, int] = {}
+    try:
+        tracks = get_artist_top_tracks(artist["id"], market=market)
+    except Exception:
+        tracks = []
+    for track in tracks:
+        album = track.get("album") or {}
+        album_id = album.get("id")
+        if not album_id:
+            continue
+        if _token_overlap(artist.get("name", artist_name), _album_artists_text(album)) < 0.5:
+            continue
+        albums_by_id[album_id] = album
+        popularity_counts[album_id] = popularity_counts.get(album_id, 0) + 1
+
+    try:
+        artist_albums = get_artist_albums(artist["id"], market=market)
+    except Exception:
+        artist_albums = []
+    for album in sorted(artist_albums, key=_album_sort_key):
+        album_id = album.get("id")
+        if not album_id or album_id in albums_by_id:
+            continue
+        albums_by_id[album_id] = album
+
+    sorted_albums = sorted(
+        albums_by_id.values(),
+        key=lambda item: (
+            -popularity_counts.get(item.get("id"), 0),
+            0 if item.get("album_type") == "album" else 1,
+            str(item.get("release_date") or ""),
+        ),
+    )
+
+    cards: list[SpotifyCard] = []
+    seen_urls: set[str] = set()
+    for album in sorted_albums:
+        card = build_album_card(album, source_entity=artist.get("name") or artist_name)
+        if not card or card.spotify_url in seen_urls:
+            continue
+        card.metadata["selection_reason"] = "Selected from Spotify artist albums and top-track album signals."
+        card.metadata["source_artist"] = artist.get("name") or artist_name
+        seen_urls.add(card.spotify_url)
+        cards.append(card)
+        if len(cards) >= max_albums:
+            break
+    return cards
+
+
 def build_spotify_cards_for_entities(
     ranked_entities: list[RankedMusicEntity],
     query_understanding: QueryUnderstandingResult,
@@ -485,6 +565,11 @@ def build_spotify_cards_for_entities(
 
     elif target == "albums":
         for entity in ranked_entities:
+            if entity.type == "artist":
+                cards.extend(_artist_album_cards(entity.name, max_albums=max_cards - len(cards), market=market))
+                if len(cards) >= max_cards:
+                    return cards[:max_cards]
+                continue
             album = search_album(entity.name, market=market)
             card = build_album_card(album, source_entity=entity.name) if album else None
             if card:
