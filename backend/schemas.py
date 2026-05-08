@@ -14,7 +14,16 @@ from src.services.quota_service import QuotaStatus
 class HealthResponse(BaseModel):
     status: Literal["ok"]
     service: str
+    app_env: str
+    sonicmind_mode: str
+    retrieval_backend: str
     knowledge_base_ready: bool
+    semantic_retrieval_ready: bool
+    local_embedding_enabled: bool
+    reranker_enabled: bool
+    rag_load_on_startup: bool
+    fallback_mode: str
+    heavy_dependencies_available: dict[str, bool]
 
 
 class LoginRequest(BaseModel):

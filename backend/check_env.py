@@ -1,11 +1,19 @@
+from __future__ import annotations
+
+import importlib
 import sys
 
-import transformers
-import faiss
 
-# Print runtime versions used by the deployment smoke check.
+def _version(module_name: str) -> str:
+    # This checker imports heavy semantic packages only when the script is run intentionally.
+    try:
+        module = importlib.import_module(module_name)
+    except ImportError:
+        return "not installed"
+    return str(getattr(module, "__version__", "ok"))
+
+
 print("Python:", sys.version)
-print("transformers:", transformers.__version__)
-print("faiss:", faiss.__version__ if hasattr(faiss, "__version__") else "ok")
-# Keep this checker aligned with requirements.txt so it validates the deployable app environment.
-print("ALL IMPORTS OK ✅")
+for dependency in ("transformers", "faiss", "sentence_transformers", "torch"):
+    print(f"{dependency}: {_version(dependency)}")
+print("ENV CHECK COMPLETE")

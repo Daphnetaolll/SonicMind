@@ -12,6 +12,7 @@ from src.evidence import AnswerSynthesis, Citation, EvidenceAssessment, Evidence
 from src.memory import ChatTurn, format_chat_history
 from src.music.schemas import MusicRoutingResult
 from src.retriever import RetrievalResult
+from src.settings import resolve_runtime_settings
 
 
 DEFAULT_SYSTEM_PROMPT = (
@@ -66,10 +67,7 @@ def format_context(results: Iterable[RetrievalResult]) -> str:
 def format_evidence_context(evidence: Iterable[EvidenceItem]) -> str:
     # Number evidence blocks so the model can return citation ids that map back to source cards.
     sections: list[str] = []
-    try:
-        remaining_chars = max(1200, int(os.getenv("MAX_CONTEXT_CHARS", "6000")))
-    except ValueError:
-        remaining_chars = 6000
+    remaining_chars = max(1200, resolve_runtime_settings().max_context_chars)
     for idx, item in enumerate(evidence, start=1):
         if remaining_chars <= 0:
             break
@@ -227,14 +225,45 @@ def _looks_like_unhelpful_answer(answer: str) -> bool:
     # Detect generic refusal text so structured music candidates can rescue otherwise weak answers.
     lowered = answer.lower()
     markers = (
+        "couldn't find",
+        "could not find",
+        "couldn't find specific",
+        "could not find specific",
         "does not specify",
         "does not provide",
         "cannot provide",
         "cannot determine",
         "not enough evidence",
         "insufficient evidence",
+        "checking current charts",
+        "music streaming platforms",
     )
     return any(marker in lowered for marker in markers)
+
+
+def _answer_omits_recommendation_candidates(answer: str, music_routing: MusicRoutingResult) -> bool:
+    # Recommendation answers must name the same track candidates used for Spotify cards.
+    plan = music_routing.recommendation_plan
+    if plan.question_type not in {"trending_tracks", "track_recommendation", "playlist_discovery"}:
+        return False
+    if not plan.candidate_tracks:
+        return False
+
+    lowered = answer.lower()
+    for track in plan.candidate_tracks[:4]:
+        if track.title.lower() in lowered or track.artist.lower() in lowered:
+            return False
+    return True
+
+
+def _uses_representative_fallback(music_routing: MusicRoutingResult) -> bool:
+    # Curated/generated fallback tracks are useful examples, but they are not live chart verification.
+    plan = music_routing.recommendation_plan
+    if plan.question_type != "trending_tracks":
+        return False
+    if plan.uncertainty_note and "rather than verified current chart hits" in plan.uncertainty_note:
+        return True
+    return any("representative fallback" in track.reason.lower() for track in plan.candidate_tracks)
 
 
 def _structured_music_answer(query: str, music_routing: MusicRoutingResult) -> str:
@@ -242,16 +271,28 @@ def _structured_music_answer(query: str, music_routing: MusicRoutingResult) -> s
     use_chinese = bool(re.search(r"[\u4e00-\u9fff]", query))
     understanding = music_routing.query_understanding
     track_candidates = music_routing.recommendation_plan.candidate_tracks[:6]
+    representative_fallback = _uses_representative_fallback(music_routing)
     if track_candidates:
         names = ", ".join(f"{track.artist} - {track.title}" for track in track_candidates)
         if use_chinese:
-            answer = f"针对 {understanding.genre_hint or '这种风格'}，我找到的最强曲目候选是 {names}。"
+            if representative_fallback:
+                answer = (
+                    f"我还没能验证 {understanding.genre_hint or '这种风格'} 的实时热门榜单曲目，"
+                    f"但可以先给你这些有来源支撑的代表性选择：{names}。"
+                )
+            else:
+                answer = f"针对 {understanding.genre_hint or '这种风格'}，我找到的最强曲目候选是 {names}。"
             details = []
             for track in track_candidates[:4]:
                 sources = ", ".join(track.source_names[:3]) or track.source_type
                 details.append(f"{track.artist} - {track.title} 由 {sources} 支持。")
             return answer + " " + " ".join(details)
-        if music_routing.recommendation_plan.question_type == "trending_tracks":
+        if representative_fallback:
+            answer = (
+                f"I could not verify live current chart hits for {understanding.genre_hint or 'this style'}, "
+                f"but these source-grounded representative picks are concrete starting points: {names}."
+            )
+        elif music_routing.recommendation_plan.question_type == "trending_tracks":
             answer = f"For {understanding.genre_hint or 'this style'}, the strongest current track candidates I found are {names}."
         else:
             answer = f"For {understanding.genre_hint or 'this style'}, the strongest track candidates I found are {names}."
@@ -449,7 +490,14 @@ def synthesize_answer(
         uncertainty_note = "The available evidence does not fully cover the question."
 
     answer = str(parsed.get("answer", "")).strip()
-    if music_routing and music_routing.ranked_entities and _looks_like_unhelpful_answer(answer):
+    should_use_structured_music = False
+    if music_routing and (music_routing.ranked_entities or music_routing.recommendation_plan.candidate_tracks):
+        should_use_structured_music = _looks_like_unhelpful_answer(answer) or _answer_omits_recommendation_candidates(
+            answer,
+            music_routing,
+        )
+
+    if music_routing and should_use_structured_music:
         structured_answer = _structured_music_answer(query, music_routing)
         if structured_answer:
             answer = structured_answer

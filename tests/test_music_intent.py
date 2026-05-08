@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.integrations.spotify_client import build_track_card
+from src.music.music_recommendation_planner import build_music_recommendation_plan
 from src.music.query_understanding import understand_query
 
 
@@ -48,6 +49,46 @@ def test_dj_set_song_recommendation_routes_to_tracks() -> None:
     assert result.primary_entity_type == "track"
     assert result.genre_hint == "techno"
     assert result.spotify_display_target == "tracks"
+
+
+def test_recent_dance_music_query_uses_clean_genre_hint() -> None:
+    # Trend/recommendation filler words should not leak into the genre sent to search and Spotify.
+    result = understand_query("recommend me some popular dance music recently")
+
+    assert result.intent == "track_recommendation"
+    assert result.primary_entity_type == "track"
+    assert result.genre_hint == "electronic dance music"
+    assert result.needs_spotify is True
+    assert result.spotify_display_target == "tracks"
+
+
+def test_drum_and_bass_alias_routes_to_known_genre() -> None:
+    # Common DnB spellings should resolve to the curated genre key used by retrieval and Spotify.
+    result = understand_query("What is drum & bass?")
+
+    assert result.intent == "genre_explanation"
+    assert result.genre_hint == "drum and bass"
+    assert result.needs_spotify is True
+
+
+def test_recent_dance_music_plan_falls_back_to_concrete_representative_tracks(monkeypatch) -> None:
+    # If live chart search has no exact artist-track pairs, return concrete tracks with a caution note.
+    def fake_search_web(*_args, **_kwargs):
+        return []
+
+    monkeypatch.setattr("src.music.music_recommendation_planner.search_web", fake_search_web)
+
+    query = "recommend me some popular dance music recently"
+    understanding = understand_query(query)
+    plan = build_music_recommendation_plan(query, understanding, evidence=[])
+
+    assert plan.question_type == "trending_tracks"
+    assert plan.genre_hint == "electronic dance music"
+    assert plan.confidence == "PARTIAL"
+    assert plan.candidate_tracks
+    assert plan.candidate_tracks[0].source_type == "curated"
+    assert plan.uncertainty_note is not None
+    assert "rather than verified current chart hits" in plan.uncertainty_note
 
 
 def test_spotify_track_embed_url_formatting() -> None:

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -29,6 +28,7 @@ from src.music.schemas import (
 )
 from src.retriever import RetrievalResult
 from src.services.router_service import route_evidence
+from src.settings import resolve_runtime_settings
 from src.support_responses import get_support_answer
 
 
@@ -65,13 +65,6 @@ class RAGPipelineResult:
     music_routing: MusicRoutingResult
 
 
-def _env_int(name: str, default: int) -> int:
-    try:
-        return int(os.getenv(name, str(default)))
-    except ValueError:
-        return default
-
-
 def answer_question(
     query: str,
     chat_history: list[Any] | None = None,
@@ -94,8 +87,9 @@ def answer_question(
         # Product/support prompts use app-owned facts instead of broader web retrieval or Spotify routing.
         return _support_result(query, support_answer, history, max_history_turns, topk, candidate_k or max(topk * 4, 12))
 
-    topk_limit = max(1, _env_int("RAG_TOP_K", 3))
-    candidate_limit = max(1, _env_int("RAG_CANDIDATE_K", 12))
+    runtime_settings = resolve_runtime_settings()
+    topk_limit = max(1, runtime_settings.rag_top_k)
+    candidate_limit = max(1, runtime_settings.rag_candidate_k)
     effective_topk = max(1, min(topk, topk_limit))
     effective_candidate_k = min(candidate_k or max(effective_topk * 4, 12), candidate_limit)
     retrieval_query, query_rewritten = rewrite_query_with_history(query, history)

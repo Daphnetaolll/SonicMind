@@ -7,6 +7,7 @@ from src.music.schemas import MusicEntityMention, QueryUnderstandingResult
 
 
 GENRE_PATTERNS = (
+    "electronic dance music",
     "ambient techno",
     "minimal techno",
     "melodic techno",
@@ -14,12 +15,40 @@ GENRE_PATTERNS = (
     "acid house",
     "deep house",
     "progressive house",
+    "drum and bass",
+    "drum & bass",
+    "dance music",
     "electronic music",
     "house music",
     "techno",
     "house",
     "trance",
+    "dnb",
+    "edm",
 )
+GENRE_ALIASES = {
+    "dance": "electronic dance music",
+    "dance music": "electronic dance music",
+    "edm": "electronic dance music",
+    "drum & bass": "drum and bass",
+    "dnb": "drum and bass",
+}
+GENRE_QUERY_FILLERS = {
+    "best",
+    "current",
+    "currently",
+    "hot",
+    "hottest",
+    "latest",
+    "me",
+    "new",
+    "popular",
+    "recent",
+    "recently",
+    "some",
+    "top",
+    "trending",
+}
 
 MOOD_GENRE_HINTS = (
     (("dark", "minimal", "hypnotic", "underground", "暗黑", "极简", "極簡", "深夜", "凌晨"), "minimal techno"),
@@ -39,7 +68,9 @@ def _contains_any(text: str, markers: tuple[str, ...]) -> bool:
 
 def _clean_genre_candidate(candidate: str) -> str:
     candidate = re.sub(r"\b(labels|artists|songs|tracks|albums|playlists)\b.*$", "", candidate).strip(" ?.")
-    candidate = re.sub(r"^(me|the|some)\s+", "", candidate).strip()
+    words = candidate.split()
+    cleaned_words = [word for word in words if word.lower().strip(" ?.!") not in GENRE_QUERY_FILLERS]
+    candidate = " ".join(cleaned_words).strip()
     return candidate
 
 
@@ -49,11 +80,13 @@ def _known_genre_in_text(text: str) -> str | None:
         return "techno"
     for genre in GENRE_PATTERNS:
         if genre in lowered:
-            return genre
+            return GENRE_ALIASES.get(genre, genre)
     if "浩室" in text:
         return "house"
     if "电子" in text or "電子" in text:
         return "electronic music"
+    if lowered.strip() in GENRE_ALIASES:
+        return GENRE_ALIASES[lowered.strip()]
     return None
 
 

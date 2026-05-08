@@ -285,6 +285,7 @@ I keep a daily development log to document design decisions, implementation prog
 - [2026-04-27](docs/devlog/2026-04-27.md)
 - [2026-05-04](docs/devlog/2026-05-04.md)
 - [2026-05-05](docs/devlog/2026-05-05.md)
+- [2026-05-06](docs/devlog/2026-05-06.md)
 
 ## Public Beta Deployment
 

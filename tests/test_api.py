@@ -32,16 +32,34 @@ class FakeRagResult:
 
 def test_health_endpoint_reports_ok(monkeypatch) -> None:
     # Patch readiness so the health test focuses on response shape instead of local artifacts.
+    monkeypatch.setenv("APP_ENV", "test")
+    monkeypatch.setenv("SONICMIND_MODE", "production_light")
+    monkeypatch.setenv("SONICMIND_RETRIEVAL_BACKEND", "lexical")
+    monkeypatch.setenv("ENABLE_LOCAL_EMBEDDING_MODEL", "false")
+    monkeypatch.setenv("ENABLE_RERANKER", "false")
+    monkeypatch.setenv("RAG_LOAD_ON_STARTUP", "false")
+    monkeypatch.setenv("RAG_FALLBACK_MODE", "keyword")
     monkeypatch.setattr("backend.main.knowledge_base_ready", lambda: True)
 
     response = client.get("/api/health")
 
     assert response.status_code == 200
-    assert response.json() == {
+    data = response.json()
+    assert data == {
         "status": "ok",
         "service": "sonicmind-api",
+        "app_env": "test",
+        "sonicmind_mode": "production_light",
+        "retrieval_backend": "lexical",
         "knowledge_base_ready": True,
+        "semantic_retrieval_ready": data["semantic_retrieval_ready"],
+        "local_embedding_enabled": False,
+        "reranker_enabled": False,
+        "rag_load_on_startup": False,
+        "fallback_mode": "keyword",
+        "heavy_dependencies_available": data["heavy_dependencies_available"],
     }
+    assert set(data["heavy_dependencies_available"]) == {"faiss", "sentence_transformers", "torch", "transformers"}
 
 
 def test_chat_endpoint_returns_serialized_rag_result(monkeypatch) -> None:

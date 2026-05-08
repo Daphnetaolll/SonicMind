@@ -1,3 +1,6 @@
+# Full local/high-memory semantic dependencies for SONICMIND_MODE=local_semantic.
+# Local or 4GB/8GB build command: pip install -r requirements.txt
+# Includes FAISS, sentence-transformers, transformers, and torch for BAAI/bge-m3 retrieval.
 streamlit>=1.32,<2
 fastapi>=0.115,<1
 uvicorn[standard]>=0.30,<1

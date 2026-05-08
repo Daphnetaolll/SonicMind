@@ -6,6 +6,7 @@ const TEST_PASSWORD = process.env.TEST_PASSWORD || 'TestPassword123!';
 const TEST_EMAIL =
   process.env.TEST_EMAIL || `sonicmind_test_${new Date().toISOString().replace(/\D/g, '')}@example.com`;
 const CHAT_QUESTION = 'What is drum and bass?';
+const EXPECTED_RETRIEVAL_BACKEND = process.env.EXPECTED_RETRIEVAL_BACKEND || 'lexical';
 
 function appUrl(path = '') {
   return new URL(path, FRONTEND_URL).toString();
@@ -119,6 +120,7 @@ test('production registration, login, and chat journey works', async ({ page, re
     expect(health).toMatchObject({
       status: 'ok',
       service: 'sonicmind-api',
+      retrieval_backend: EXPECTED_RETRIEVAL_BACKEND,
       knowledge_base_ready: true,
     });
 

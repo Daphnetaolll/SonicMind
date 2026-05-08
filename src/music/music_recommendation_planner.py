@@ -5,6 +5,7 @@ from datetime import datetime
 
 from src.evidence import EvidenceItem
 from src.music.dynamic_recommendation_discovery import DISCOVERY_DOMAINS, TrackCandidate, extract_track_candidates_from_hits
+from src.music.recommendation_provider import get_recommendation_for_genre
 from src.music.schemas import (
     MusicRecommendationPlan,
     MusicTrackCandidate,
@@ -186,6 +187,42 @@ def _merge_candidates(candidates: list[MusicTrackCandidate], max_candidates: int
     return ranked[:max_candidates]
 
 
+def _fallback_representative_candidates(
+    genre_hint: str | None,
+    *,
+    max_candidates: int,
+) -> list[MusicTrackCandidate]:
+    # When live search cannot extract current artist-track pairs, keep recommendations concrete and source-backed.
+    recommendation = get_recommendation_for_genre(genre_hint)
+    if not recommendation:
+        return []
+
+    record, recommendation_source = recommendation
+    source_type = "curated" if recommendation_source == "curated" else "generated_cache"
+    candidates: list[MusicTrackCandidate] = []
+    for item in record.get("representative_tracks", []):
+        title = item.get("title")
+        artist = item.get("artist")
+        if not title or not artist:
+            continue
+        source_names = list(item.get("sources", []) or record.get("sources", []) or [])
+        candidates.append(
+            MusicTrackCandidate(
+                title=title,
+                artist=artist,
+                score=0.35,
+                source_type=source_type,  # type: ignore[arg-type]
+                source_names=source_names,
+                source_urls=list(item.get("source_urls", []) or [])[:3],
+                evidence=str(record.get("explanation", "")),
+                reason="Used as a source-grounded representative fallback when recent track search had no exact candidates.",
+            )
+        )
+        if len(candidates) >= max_candidates:
+            break
+    return candidates
+
+
 def _candidate_confidence(candidate_count: int, searched: bool) -> tuple[str, str | None]:
     # Convert candidate coverage into a user-facing confidence label and uncertainty note.
     if candidate_count >= 4:
@@ -256,7 +293,24 @@ def build_music_recommendation_plan(
                 )
 
     ranked = _merge_candidates(plan_candidates, max_candidates)
+    fallback_used = False
+    if not ranked:
+        ranked = _fallback_representative_candidates(
+            understanding.genre_hint,
+            max_candidates=max_candidates,
+        )
+        fallback_used = bool(ranked)
+
     confidence, uncertainty_note = _candidate_confidence(len(ranked), searched=searched or bool(queries))
+    if fallback_used:
+        confidence = "PARTIAL"
+        if question_type == "trending_tracks":
+            uncertainty_note = (
+                "Trusted-source search did not return exact recent artist-track candidates, "
+                "so these are source-grounded representative tracks rather than verified current chart hits."
+            )
+        else:
+            uncertainty_note = "Used source-grounded representative tracks because dynamic search found no exact candidates."
     return MusicRecommendationPlan(
         question_type=question_type,
         genre_hint=understanding.genre_hint,

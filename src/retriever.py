@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-import os
+import logging
 import re
 from dataclasses import dataclass
 from functools import lru_cache
@@ -10,13 +10,17 @@ from pathlib import Path
 from typing import Any
 
 from backend.services.memory_logging import log_memory
-from src.embeddings import DEFAULT_EMBEDDING_MODEL, EmbeddingConfig, TextEmbedder
-from src.indexer import load_faiss_index
+from src.embeddings import DEFAULT_EMBEDDING_MODEL
+from src.settings import (
+    CHUNKS_PATH,
+    INDEX_PATH,
+    META_PATH,
+    get_fallback_mode,
+    get_retrieval_backend,
+    is_local_embedding_enabled,
+    resolve_runtime_settings,
+)
 
-INDEX_PATH = Path("data/index/faiss.index")
-META_PATH = Path("data/processed/chunk_meta.jsonl")
-CHUNKS_PATH = Path("data/processed/chunks.jsonl")
-LEXICAL_DEFAULT_BACKEND = "lexical"
 SEMANTIC_BACKENDS = {"faiss", "semantic"}
 STOPWORDS = {
     "a",
@@ -55,6 +59,14 @@ STOPWORDS = {
     "with",
 }
 
+LOGGER = logging.getLogger("sonicmind.retrieval")
+LOGGER.setLevel(logging.INFO)
+if not LOGGER.handlers:
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(logging.Formatter("%(message)s"))
+    LOGGER.addHandler(_handler)
+LOGGER.propagate = False
+
 
 # RetrievalResult keeps FAISS scores tied to the original chunk metadata and text.
 @dataclass
@@ -89,6 +101,8 @@ def build_chunk_lookup(chunks_path: Path) -> dict[str, dict[str, Any]]:
 @lru_cache(maxsize=4)
 def _cached_index(index_path: str):
     # Keep the FAISS index in memory so repeated chat requests do not reload the same binary artifact.
+    from src.indexer import load_faiss_index
+
     log_memory("before_faiss_load", path=Path(index_path).name)
     index = load_faiss_index(Path(index_path))
     log_memory("after_faiss_load", path=Path(index_path).name)
@@ -117,8 +131,10 @@ def _cached_chunk_lookup(chunks_path: str) -> dict[str, dict[str, Any]]:
 @lru_cache(maxsize=4)
 def _cached_embedder(model_name: str) -> TextEmbedder:
     # SentenceTransformer construction may contact Hugging Face; reuse it across requests to avoid rate limits.
-    if os.getenv("ENABLE_LOCAL_EMBEDDING_MODEL", "true").strip().lower() in {"0", "false", "no"}:
+    if not is_local_embedding_enabled():
         raise RuntimeError("Local embedding model is disabled.")
+
+    from src.embeddings import EmbeddingConfig, TextEmbedder
 
     log_memory("before_embedding_model_load", model=model_name)
     embedder = TextEmbedder(EmbeddingConfig(model_name=model_name, normalize=True))
@@ -134,26 +150,15 @@ def clear_retrieval_cache() -> None:
     _cached_embedder.cache_clear()
 
 
-def _retrieval_backend() -> str:
-    # Keep production chat lightweight unless semantic FAISS retrieval is explicitly enabled.
-    return os.getenv("SONICMIND_RETRIEVAL_BACKEND", LEXICAL_DEFAULT_BACKEND).strip().lower()
-
-
-def _fallback_mode() -> str:
-    # Keyword fallback keeps chat alive when semantic RAG cannot fit in the available memory.
-    return os.getenv("RAG_FALLBACK_MODE", "keyword").strip().lower()
-
-
-def _env_int(name: str, default: int) -> int:
-    try:
-        return int(os.getenv(name, str(default)))
-    except ValueError:
-        return default
+def _log_retrieval(**fields: object) -> None:
+    # Retrieval logs carry only backend choices and limits, never prompts, tokens, or credentials.
+    safe_fields = " ".join(f"{key}={value}" for key, value in fields.items())
+    LOGGER.info("[RETRIEVAL] %s", safe_fields)
 
 
 def _bounded_k(k: int) -> int:
     # Cap retrieval fanout from env so plan settings cannot create runaway prompt or rerank memory.
-    limit = max(1, _env_int("RAG_CANDIDATE_K", 12))
+    limit = max(1, resolve_runtime_settings().rag_candidate_k)
     return max(1, min(k, limit))
 
 
@@ -282,7 +287,14 @@ def _semantic_retrieve_topk(query: str, k: int, model_name: str) -> list[Retriev
 
 def retrieve_topk(query: str, k: int = 5, model_name: str = DEFAULT_EMBEDDING_MODEL) -> list[RetrievalResult]:
     effective_k = _bounded_k(k)
-    backend = _retrieval_backend()
+    settings = resolve_runtime_settings()
+    backend = get_retrieval_backend()
+    _log_retrieval(
+        backend=backend,
+        top_k=settings.rag_top_k,
+        candidate_k=settings.rag_candidate_k,
+        fallback=settings.fallback_mode,
+    )
     log_memory("before_retrieve_topk", backend=backend, requested_k=k, effective_k=effective_k)
 
     try:
@@ -303,6 +315,6 @@ def retrieve_topk(query: str, k: int = 5, model_name: str = DEFAULT_EMBEDDING_MO
             except Exception as fallback_exc:
                 log_memory("retrieve_topk_fallback_failed", error_type=fallback_exc.__class__.__name__)
 
-        if _fallback_mode() in {"keyword", "llm_only"}:
+        if get_fallback_mode() in {"keyword", "llm_only"}:
             return []
         raise

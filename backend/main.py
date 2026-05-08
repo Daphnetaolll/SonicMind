@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import os
+from contextlib import asynccontextmanager
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from backend.services.memory_logging import log_memory
 
 log_memory("backend_module_start")
 
-from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -36,16 +40,40 @@ from backend.services.chat_service import answer_user_question
 from backend.services.error_service import safe_error_message
 from backend.services.favorite_service import delete_favorite, list_favorites, save_favorite
 from backend.services.history_service import delete_saved_history, get_saved_history
-from backend.services.knowledge_base_service import knowledge_base_ready
+from backend.services.knowledge_base_service import knowledge_base_diagnostics, knowledge_base_ready
 from backend.services.token_service import create_access_token, verify_access_token
 from src.services.auth_service import AuthUser, get_user
 from src.services.quota_service import get_quota_status
+from src.settings import log_runtime_mode, resolve_runtime_settings
 
 
-load_dotenv()
+log_runtime_mode()
 log_memory("backend_after_imports")
 
-app = FastAPI(title="SonicMind API", version="0.1.0")
+
+def warm_retrieval_if_configured() -> None:
+    # Optional startup loading is explicit because semantic mode can be too large for 2 GB production instances.
+    settings = resolve_runtime_settings()
+    if not settings.rag_load_on_startup:
+        return
+    log_memory("before_startup_rag_load", backend=settings.retrieval_backend)
+    if not knowledge_base_ready():
+        raise RuntimeError(f"Knowledge base is not ready for {settings.retrieval_backend} retrieval.")
+
+    from src.retriever import retrieve_topk
+
+    retrieve_topk("What is electronic music?", k=1)
+    log_memory("after_startup_rag_load", backend=settings.retrieval_backend)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # FastAPI lifespan runs the optional warmup without using deprecated startup decorators.
+    warm_retrieval_if_configured()
+    yield
+
+
+app = FastAPI(title="SonicMind API", version="0.1.0", lifespan=lifespan)
 security = HTTPBearer(auto_error=False)
 log_memory("backend_after_app_creation")
 
@@ -107,13 +135,24 @@ def get_current_user(
 
 @app.get("/api/health", response_model=HealthResponse)
 def health() -> HealthResponse:
-    # Include knowledge-base readiness so deployment checks can catch missing generated artifacts.
-    ready = knowledge_base_ready()
-    log_memory("health_check", knowledge_base_ready=ready)
+    # Include mode diagnostics without forcing semantic imports or exposing secret environment values.
+    settings = resolve_runtime_settings()
+    diagnostics = knowledge_base_diagnostics()
+    ready = bool(diagnostics["knowledge_base_ready"])
+    log_memory("health_check", knowledge_base_ready=ready, backend=settings.retrieval_backend)
     return HealthResponse(
         status="ok",
         service="sonicmind-api",
+        app_env=settings.app_env,
+        sonicmind_mode=settings.sonicmind_mode,
+        retrieval_backend=settings.retrieval_backend,
         knowledge_base_ready=ready,
+        semantic_retrieval_ready=bool(diagnostics["semantic_retrieval_ready"]),
+        local_embedding_enabled=settings.local_embedding_enabled,
+        reranker_enabled=settings.reranker_enabled,
+        rag_load_on_startup=settings.rag_load_on_startup,
+        fallback_mode=settings.fallback_mode,
+        heavy_dependencies_available=diagnostics["heavy_dependencies_available"],  # type: ignore[arg-type]
     )
 
 
@@ -196,7 +235,7 @@ def chat(payload: ChatRequest, current_user: AuthUser = Depends(get_current_user
         )
     ready = knowledge_base_ready()
     log_memory("after_knowledge_base_ready_check", knowledge_base_ready=ready)
-    if not ready and os.getenv("RAG_FALLBACK_MODE", "keyword").strip().lower() not in {"llm_only", "keyword"}:
+    if not ready and resolve_runtime_settings().fallback_mode not in {"llm_only", "keyword"}:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Knowledge base is not ready.",

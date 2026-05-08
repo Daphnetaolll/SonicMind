@@ -67,5 +67,23 @@
   },
   "drum & bass": {
     "alias_for": "drum and bass"
+  },
+  "electronic dance music": {
+    "explanation": "These tracks are curated representative dance/electronic examples. They are not claimed as current chart hits; Spotify matching is validated by title and artist.",
+    "representative_tracks": [
+      {"title": "One More Time", "artist": "Daft Punk", "sources": ["Discogs", "AllMusic"]},
+      {"title": "Music Sounds Better With You", "artist": "Stardust", "sources": ["Discogs", "AllMusic"]},
+      {"title": "Finally", "artist": "Kings Of Tomorrow", "sources": ["Discogs"]},
+      {"title": "Show Me Love", "artist": "Robin S", "sources": ["Discogs", "AllMusic"]},
+      {"title": "Insomnia", "artist": "Faithless", "sources": ["Discogs", "AllMusic"]}
+    ],
+    "representative_artists": ["Daft Punk", "Stardust", "Kings Of Tomorrow", "Robin S", "Faithless"],
+    "sources": ["Discogs", "AllMusic"]
+  },
+  "dance music": {
+    "alias_for": "electronic dance music"
+  },
+  "edm": {
+    "alias_for": "electronic dance music"
   }
 }

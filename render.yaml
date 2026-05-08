@@ -28,6 +28,10 @@ services:
       - key: BACKEND_CORS_ORIGINS
         # Include every browser origin that hosts the React app; CORS compares exact origins.
         value: https://sonicmind.onrender.com,https://sonicmind-frontend.onrender.com
+      - key: APP_ENV
+        value: production
+      - key: SONICMIND_MODE
+        value: production_light
       - key: WEB_SEARCH_PROVIDER
         value: tavily
       - key: SONICMIND_RETRIEVAL_BACKEND

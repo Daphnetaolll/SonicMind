@@ -5,12 +5,19 @@ import sys
 from pathlib import Path
 from typing import Protocol
 
+from src.settings import (
+    CHUNKS_PATH,
+    INDEX_PATH,
+    META_PATH,
+    get_retrieval_backend,
+    heavy_dependencies_available,
+    lexical_artifacts_available,
+    semantic_artifacts_available,
+    semantic_retrieval_ready as settings_semantic_retrieval_ready,
+)
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 RAW_DIR = ROOT_DIR / "data" / "raw"
-CHUNKS_PATH = ROOT_DIR / "data" / "processed" / "chunks.jsonl"
-META_PATH = ROOT_DIR / "data" / "processed" / "chunk_meta.jsonl"
-INDEX_PATH = ROOT_DIR / "data" / "index" / "faiss.index"
 
 
 class UploadedTextFile(Protocol):
@@ -76,8 +83,31 @@ def rebuild_knowledge_base() -> None:
 
 
 def knowledge_base_ready() -> bool:
-    """Return whether all generated RAG corpus artifacts are present."""
-    return CHUNKS_PATH.exists() and META_PATH.exists() and INDEX_PATH.exists()
+    """Return whether the active retrieval backend has the generated artifacts it needs."""
+    backend = get_retrieval_backend()
+    if backend == "faiss":
+        return semantic_artifacts_available()
+    return lexical_artifacts_available()
+
+
+def semantic_retrieval_ready() -> bool:
+    """Return whether FAISS mode has both files and optional heavy packages available."""
+    return settings_semantic_retrieval_ready()
+
+
+def knowledge_base_diagnostics() -> dict[str, object]:
+    # Health diagnostics describe readiness without importing semantic libraries or exposing secrets.
+    dependencies = heavy_dependencies_available()
+    return {
+        "knowledge_base_ready": knowledge_base_ready(),
+        "semantic_retrieval_ready": semantic_retrieval_ready(),
+        "heavy_dependencies_available": {
+            "faiss": dependencies["faiss"],
+            "sentence_transformers": dependencies["sentence_transformers"],
+            "torch": dependencies["torch"],
+            "transformers": dependencies["transformers"],
+        },
+    }
 
 
 def count_local_source_docs() -> int:

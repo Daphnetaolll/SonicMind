@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import os
+from src.settings import is_reranker_enabled, resolve_runtime_settings
 
 from backend.services.memory_logging import log_memory
 from src.evidence import EvidenceItem
@@ -9,14 +9,11 @@ from src.retriever import RetrievalResult, retrieve_topk
 
 def _reranker_enabled() -> bool:
     # The current reranker is lightweight, but this flag preserves a production kill switch.
-    return os.getenv("ENABLE_RERANKER", "false").strip().lower() in {"1", "true", "yes"}
+    return is_reranker_enabled()
 
 
 def _max_source_chars() -> int:
-    try:
-        return max(400, int(os.getenv("MAX_SOURCE_CHARS", "2000")))
-    except ValueError:
-        return 2000
+    return resolve_runtime_settings().max_source_chars
 
 
 def _trim_source_text(text: str) -> str:
