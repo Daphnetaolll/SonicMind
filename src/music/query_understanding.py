@@ -60,6 +60,11 @@ ALBUM_ARTIST_PATTERNS = (
     r"\b(?:popular|best|top|recommend(?:ed)?)\s+albums?\s+(?:by|from)\s+(?P<name>[A-Za-z0-9&'’.\- ]{2,80})",
     r"\balbums?\s+(?:by|from)\s+(?P<name>[A-Za-z0-9&'’.\- ]{2,80})",
 )
+TRACK_ARTIST_PATTERNS = (
+    r"\b(?P<name>[A-Za-z0-9&'’.\- ]{2,80})['’]s\s+(?:popular\s+|best\s+|top\s+)?(?:song|songs|track|tracks)\b",
+    r"\b(?:popular|best|top|recommend(?:ed)?)\s+(?:song|songs|track|tracks)\s+(?:by|from)\s+(?P<name>[A-Za-z0-9&'’.\- ]{2,80})",
+    r"\b(?:song|songs|track|tracks)\s+(?:by|from)\s+(?P<name>[A-Za-z0-9&'’.\- ]{2,80})",
+)
 ENTITY_NAME_PARTICLES = {"and", "of", "de", "del", "da", "van", "von", "&"}
 
 MOOD_GENRE_HINTS = (
@@ -122,6 +127,7 @@ def _display_entity_name(candidate: str) -> str:
 def _clean_artist_candidate(candidate: str) -> str | None:
     # Strip prompt scaffolding without removing artist names such as "DJ Seinfeld".
     cleaned = re.sub(r"\s+", " ", candidate).strip(" ?.!,:;\"'")
+    cleaned = re.sub(r"^(?:can|could|would)\s+you\s+", "", cleaned, flags=re.I)
     cleaned = re.sub(r"^(?:recommend|recommand|show|give|find|play)(?:\s+me)?\s+", "", cleaned, flags=re.I)
     cleaned = re.sub(r"^(?:the\s+artist\s+|artist\s+|producer\s+)", "", cleaned, flags=re.I)
     cleaned = re.sub(r"\s+(?:in|from|for)\s+(?:music|techno|house|edm|electronic music).*$", "", cleaned, flags=re.I)
@@ -231,7 +237,8 @@ def understand_query(query: str) -> QueryUnderstandingResult:
     genre_hint = _detect_mood_genre(query) or _detect_genre(query)
     profile_artist_name = _detect_artist_from_patterns(query, ARTIST_PROFILE_PATTERNS) if not genre_hint else None
     album_artist_name = _detect_artist_from_patterns(query, ALBUM_ARTIST_PATTERNS)
-    detected_artist_name = album_artist_name or profile_artist_name
+    track_artist_name = _detect_artist_from_patterns(query, TRACK_ARTIST_PATTERNS)
+    detected_artist_name = album_artist_name or track_artist_name or profile_artist_name
     if detected_artist_name and not any(item.name.lower() == detected_artist_name.lower() for item in entities):
         entities.append(MusicEntityMention(name=detected_artist_name, type="artist", confidence=0.66))
 
@@ -309,17 +316,22 @@ def understand_query(query: str) -> QueryUnderstandingResult:
         primary_entity_type = "label"
         display_target = "representative_tracks"
         needs_spotify = True
+    elif album_artist_name and _contains_any(lowered, ("album", "albums", "专辑")):
+        intent = "album_recommendation"
+        primary_entity_type = "artist"
+        display_target = "albums"
+        needs_spotify = True
+    elif track_artist_name and _contains_any(lowered, ("track", "tracks", "song", "songs", "歌曲", "歌")):
+        intent = "artist_recommendation"
+        primary_entity_type = "artist"
+        display_target = "artist_top_tracks"
+        needs_spotify = True
     elif explicit_track_request and is_recommendation:
         # "DJ" can mean an artist in profile questions, but "recommend songs for a DJ set"
         # should route to playable track cards with Spotify timeline controls.
         intent = "track_recommendation"
         primary_entity_type = "track"
         display_target = "tracks"
-        needs_spotify = True
-    elif album_artist_name and _contains_any(lowered, ("album", "albums", "专辑")):
-        intent = "album_recommendation"
-        primary_entity_type = "artist"
-        display_target = "albums"
         needs_spotify = True
     elif profile_artist_name:
         intent = "artist_profile"

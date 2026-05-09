@@ -137,3 +137,73 @@ def test_synthesis_replaces_generic_album_answer_with_spotify_album_card(monkeyp
 
     assert "kidsgonemad!" in synthesis.answer
     assert "couldn't find specific information" not in synthesis.answer
+
+
+def test_synthesis_replaces_generic_artist_song_answer_with_spotify_tracks(monkeypatch) -> None:
+    # Artist top-track cards should prevent generic local-KB fragments from becoming the final answer.
+    def fake_call_chat_completion(**_kwargs):
+        return json.dumps(
+            {
+                "answer": "For this style, the strongest track candidates I found are Techno.",
+                "certainty": "PARTIAL",
+                "uncertainty_note": "The available evidence was incomplete.",
+                "citations": [1],
+            }
+        )
+
+    monkeypatch.setattr("src.generator.call_chat_completion", fake_call_chat_completion)
+
+    evidence = [
+        EvidenceItem(
+            rank=1,
+            source_type="site",
+            source_name="Spotify",
+            title="ISOxo",
+            snippet="Spotify artist result: ISOxo.",
+            full_text="Spotify artist result: ISOxo. Top tracks include: dontstopme!.",
+            retrieval_score=0.86,
+            trust_level="medium",
+            metadata={"entity": "artist"},
+        )
+    ]
+    assessment = EvidenceAssessment(
+        label="PARTIAL",
+        reasons=["Artist evidence is available."],
+        evidence_count=1,
+        top_score=0.86,
+        keyword_coverage=0.5,
+    )
+    music_routing = MusicRoutingResult(
+        query_understanding=QueryUnderstandingResult(
+            intent="artist_recommendation",
+            primary_entity_type="artist",
+            genre_hint=None,
+            entities=[],
+            needs_resolution=False,
+            needs_spotify=True,
+            spotify_display_target="artist_top_tracks",
+        ),
+        resolved_entities=[],
+        ranked_entities=[RankedMusicEntity(name="ISOxo", type="artist", score=0.9, reason="test")],
+        recommendation_plan=MusicRecommendationPlan(question_type="artist_recommendation", genre_hint=None, time_window=None),
+        spotify_cards=[
+            SpotifyCard(
+                card_type="track",
+                title="dontstopme!",
+                subtitle="ISOxo - kidsgonemad!",
+                spotify_url="https://open.spotify.com/track/track-1",
+                source_entity="ISOxo",
+            )
+        ],
+    )
+
+    synthesis = synthesize_answer(
+        "can you recommand me ISOxo's popular song?",
+        evidence,
+        assessment,
+        config=LLMConfig(api_key="test", model="test"),
+        music_routing=music_routing,
+    )
+
+    assert "dontstopme!" in synthesis.answer
+    assert "Techno" not in synthesis.answer

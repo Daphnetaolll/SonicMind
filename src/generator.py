@@ -269,6 +269,22 @@ def _has_album_cards(music_routing: MusicRoutingResult) -> bool:
     return any(card.card_type == "album" for card in music_routing.spotify_cards)
 
 
+def _answer_omits_artist_track_cards(answer: str, music_routing: MusicRoutingResult) -> bool:
+    # Artist top-track questions should name the same Spotify tracks shown in the UI.
+    understanding = music_routing.query_understanding
+    if understanding.intent != "artist_recommendation" or understanding.spotify_display_target != "artist_top_tracks":
+        return False
+    track_cards = [card for card in music_routing.spotify_cards if card.card_type == "track"]
+    if not track_cards:
+        return False
+
+    lowered = answer.lower()
+    for card in track_cards[:4]:
+        if card.title.lower() in lowered:
+            return False
+    return True
+
+
 def _uses_representative_fallback(music_routing: MusicRoutingResult) -> bool:
     # Curated/generated fallback tracks are useful examples, but they are not live chart verification.
     plan = music_routing.recommendation_plan
@@ -296,6 +312,21 @@ def _structured_music_answer(query: str, music_routing: MusicRoutingResult) -> s
             f"For {artist}, the strongest Spotify album candidates I found are {names}. "
             "These cards come from Spotify artist-album data and top-track album signals."
         )
+
+    artist_track_cards = [
+        card
+        for card in music_routing.spotify_cards
+        if card.card_type == "track" and understanding.spotify_display_target == "artist_top_tracks"
+    ]
+    if artist_track_cards and understanding.intent == "artist_recommendation":
+        names = ", ".join(f"{card.title} ({card.subtitle})" for card in artist_track_cards[:5])
+        artist = artist_track_cards[0].source_entity
+        if not artist and understanding.entities:
+            artist = understanding.entities[0].name
+        artist = artist or "that artist"
+        if use_chinese:
+            return f"我找到的 {artist} 热门歌曲候选是：{names}。这些卡片来自 Spotify 艺人热门曲目数据。"
+        return f"For {artist}, the strongest Spotify popular-track candidates I found are {names}."
 
     track_candidates = music_routing.recommendation_plan.candidate_tracks[:6]
     representative_fallback = _uses_representative_fallback(music_routing)
@@ -525,6 +556,8 @@ def synthesize_answer(
         )
     if music_routing and _has_album_cards(music_routing):
         should_use_structured_music = should_use_structured_music or _looks_like_unhelpful_answer(answer)
+    if music_routing and _answer_omits_artist_track_cards(answer, music_routing):
+        should_use_structured_music = True
 
     if music_routing and should_use_structured_music:
         structured_answer = _structured_music_answer(query, music_routing)

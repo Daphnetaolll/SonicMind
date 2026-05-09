@@ -92,6 +92,16 @@ def test_artist_popular_album_query_routes_to_artist_albums() -> None:
     assert result.spotify_display_target == "albums"
 
 
+def test_artist_popular_song_query_routes_to_artist_top_tracks() -> None:
+    # Artist song follow-ups should use Spotify top tracks instead of generic genre recommendation.
+    result = understand_query("can you recommand me ISOxo's popular song?")
+
+    assert result.intent == "artist_recommendation"
+    assert result.primary_entity_type == "artist"
+    assert result.entities[0].name == "ISOxo"
+    assert result.spotify_display_target == "artist_top_tracks"
+
+
 def test_tell_me_about_genre_stays_genre_explanation() -> None:
     # Genre questions that look like profile prompts should still route to genre answers.
     result = understand_query("tell me about house music")
