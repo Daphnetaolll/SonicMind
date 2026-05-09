@@ -41,7 +41,7 @@ def _fetch_timeout() -> int:
 def _user_agent() -> str:
     return os.getenv(
         "MUSIC_METADATA_USER_AGENT",
-        "rag-agent-web-public-mvp/0.1 (https://github.com)",
+        "sonicmind/0.1 (https://github.com)",
     )
 
 

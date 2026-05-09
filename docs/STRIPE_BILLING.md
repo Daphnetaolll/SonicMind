@@ -14,13 +14,22 @@ Extra packs are intentionally not implemented in this first billing version.
 - `POST /api/billing/portal-session`
   - Authenticated route.
   - Opens Stripe Customer Portal for a linked Stripe customer.
-  - Used for payment methods, invoices, cancellation, and subscription management.
+  - Used for payment methods, invoices, cancellation, downgrades, and broad subscription management.
+- `POST /api/billing/subscription-plan`
+  - Authenticated route.
+  - Accepts `creator` or `pro`.
+  - Used for direct Creator to Pro upgrades from the SonicMind pricing page.
+  - Replaces the existing Stripe subscription item price instead of creating a second subscription item.
+  - Clears `cancel_at_period_end` so a canceled-at-period-end Creator subscription can become an active Pro subscription.
+  - Returns the same account-status shape as `/api/me` so the frontend can refresh plan badges immediately.
 - `POST /api/billing/webhook`
   - Public route authenticated by Stripe signature verification.
   - Reads the raw request body and `Stripe-Signature` header.
   - Processes Stripe events into `billing_events`, `subscriptions`, and `users`.
 
 Webhook reconciliation is the only source of truth for paid access. Checkout success redirects only show a processing state in the React app until `/api/me` reflects the webhook-applied plan.
+
+Direct plan changes still synchronize the updated Stripe subscription into local tables immediately. Follow-up Stripe webhooks remain idempotent and keep the database aligned with Stripe.
 
 ## Required Backend Environment Variables
 
@@ -31,7 +40,7 @@ STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 STRIPE_CREATOR_PRICE_ID=price_...
 STRIPE_PRO_PRICE_ID=price_...
-FRONTEND_BASE_URL=https://your-frontend-domain.example
+FRONTEND_BASE_URL=https://sonicmind.onrender.com
 SONICMIND_ENABLE_DEMO_BILLING_ROLLOVER=false
 ```
 
@@ -47,10 +56,10 @@ Important: `STRIPE_CREATOR_PRICE_ID` and `STRIPE_PRO_PRICE_ID` must be Stripe **
    - Allow updating payment methods.
    - Allow viewing invoice history.
    - Allow cancellation.
-   - Optionally allow subscription updates between Creator and Pro.
+   - Allow downgrades or broader subscription management if you want Stripe Portal to handle those flows.
 6. Create a webhook endpoint:
    - Local Stripe CLI: forward to `http://127.0.0.1:8000/api/billing/webhook`.
-   - Render/live test service: `https://your-api-domain.example/api/billing/webhook`.
+   - Render/live test service: `https://sonicmind-api.onrender.com/api/billing/webhook`.
 7. Subscribe the endpoint to these events:
    - `checkout.session.completed`
    - `customer.subscription.created`
@@ -78,6 +87,14 @@ stripe listen --forward-to 127.0.0.1:8000/api/billing/webhook
 
 Use Stripe test cards in Checkout. After returning to `/pricing?checkout=success`, the frontend polls `/api/me` until the webhook updates the user plan.
 
+To test direct Creator to Pro upgrade locally:
+
+1. Create or log into a user with an active Creator subscription.
+2. Open `/pricing`.
+3. Confirm the Pro card shows `Upgrade to Pro`.
+4. Click the button and confirm `/api/billing/subscription-plan` returns account status with `usage.current_plan=pro`.
+5. Confirm Stripe shows the same subscription with the Pro price as its single active item.
+
 ## Render Deployment
 
 Backend service:
@@ -85,7 +102,7 @@ Backend service:
 - Add the Stripe env vars above.
 - Keep `SONICMIND_ENABLE_DEMO_BILLING_ROLLOVER=false`.
 - Redeploy after setting env vars.
-- Confirm the webhook endpoint is the deployed API URL plus `/api/billing/webhook`.
+- Confirm the webhook endpoint is `https://sonicmind-api.onrender.com/api/billing/webhook`.
 
 Frontend service:
 
@@ -108,3 +125,5 @@ Frontend service:
 - `subscriptions.provider_subscription_id` is unique per provider and is upserted by Stripe subscription events.
 - Production quota requires a current Stripe-backed subscription row for paid access.
 - Local demo paid-plan rollover remains available only outside production for seeded test users.
+- Direct upgrades use Stripe subscription updates, not a second Checkout session, because a second subscription would create duplicate paid access and confusing invoices.
+- If Stripe requires additional payment authentication during a direct upgrade, the API can return a provider error; in that case the user should complete billing management through Stripe Portal.

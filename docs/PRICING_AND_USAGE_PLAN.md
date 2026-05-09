@@ -1,6 +1,6 @@
 # SonicMind Pricing And Usage Plan
 
-This document describes the current MVP pricing, usage, and plan-feature system. Creator and Pro subscriptions can be powered by Stripe Checkout + Billing; extra-pack purchases remain placeholders.
+This document describes the current MVP pricing, usage, and plan-feature system. Creator and Pro subscriptions are integrated with Stripe Checkout + Billing when backend Stripe env vars are configured; extra-pack purchases remain placeholders.
 
 ## Plan Table
 
@@ -41,7 +41,7 @@ The MVP extends the existing PostgreSQL schema instead of introducing a heavy bi
 - `chat_messages`: stores saved history for Creator and Pro users.
 - `favorite_tracks`: stores paid-plan favorite tracks with Spotify metadata.
 
-The preferred future billing model can keep these tables and add Stripe customer/subscription/payment identifiers through the existing `subscriptions` and `billing_events` tables.
+Stripe customer/subscription/payment identifiers are stored through the existing `subscriptions` and `billing_events` tables.
 
 ## Frontend Behavior
 
@@ -49,7 +49,9 @@ The preferred future billing model can keep these tables and add Stripe customer
 - `/chat` is protected and redirects logged-out users to `/login`.
 - Chat displays current plan, remaining quota, extra credits, and answer certainty.
 - Sources, settings, saved history, and favorites are foldable so the page stays compact.
-- Creator and Pro upgrade buttons start Stripe Checkout when billing env vars are configured.
+- Free users can start Creator or Pro Stripe Checkout when billing env vars are configured.
+- Creator users can upgrade directly to Pro through `POST /api/billing/subscription-plan`.
+- General billing management, cancellation, payment methods, invoices, and downgrades open Stripe Customer Portal.
 - Extra-pack buttons show a Coming Soon modal.
 - Spotify recommendations appear only when the backend marks the question as music-related.
 
@@ -88,6 +90,7 @@ The first Stripe version covers only monthly Creator and Pro subscriptions:
 4. Stripe subscription events upsert `subscriptions` by `provider_subscription_id`.
 5. Verified subscription periods update `users.plan`, `subscription_status`, and billing period dates.
 6. Production quota falls back to Free when no current Stripe-backed subscription row exists.
+7. Direct Creator to Pro upgrades replace the current Stripe subscription item price and then sync account status.
 
 Detailed setup is in [STRIPE_BILLING.md](STRIPE_BILLING.md).
 
@@ -103,4 +106,5 @@ Detailed setup is in [STRIPE_BILLING.md](STRIPE_BILLING.md).
 - Monthly demo periods are rolling 30-day local periods only outside production.
 - Extra-credit usage does not yet perform full FIFO expiration accounting.
 - Saved history and favorites are intentionally simple lists.
-- The frontend has a build check, but no browser automation coverage for the new modal flows yet.
+- Direct Creator to Pro upgrades can return a provider error if Stripe requires additional payment authentication.
+- Browser automation covers the main production register/login/chat journey; billing-specific browser flows still need a dedicated Stripe test-mode suite.

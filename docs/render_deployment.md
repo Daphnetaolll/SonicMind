@@ -8,6 +8,12 @@ This guide prepares SonicMind for a Render deployment with:
 
 No real secrets belong in this repo. Add real values only in the Render dashboard.
 
+## Current Deployed Services
+
+- Frontend: `https://sonicmind.onrender.com`
+- Backend API: `https://sonicmind-api.onrender.com`
+- Health endpoint: `https://sonicmind-api.onrender.com/api/health`
+
 ## Readiness Checklist
 
 Required files found:
@@ -191,7 +197,8 @@ DATABASE_URL=<Render Postgres internal database URL>
 BACKEND_SECRET_KEY=<long random value>
 LLM_API_KEY=<your backend-only LLM key>
 OPENAI_API_KEY=<optional backend-only OpenAI key>
-BACKEND_CORS_ORIGINS=https://<your-render-static-site>.onrender.com
+BACKEND_CORS_ORIGINS=https://sonicmind.onrender.com
+FRONTEND_BASE_URL=https://sonicmind.onrender.com
 WEB_SEARCH_PROVIDER=tavily
 APP_ENV=production
 SONICMIND_MODE=production_light
@@ -217,6 +224,11 @@ TAVILY_API_KEY=<optional backend-only Tavily key>
 SPOTIFY_CLIENT_ID=<optional backend-only Spotify client id>
 SPOTIFY_CLIENT_SECRET=<optional backend-only Spotify client secret>
 DISCOGS_USER_TOKEN=<optional backend-only Discogs token>
+STRIPE_SECRET_KEY=<backend-only Stripe secret key>
+STRIPE_WEBHOOK_SECRET=<backend-only Stripe webhook signing secret>
+STRIPE_CREATOR_PRICE_ID=<Stripe Creator recurring price id>
+STRIPE_PRO_PRICE_ID=<Stripe Pro recurring price id>
+SONICMIND_ENABLE_DEMO_BILLING_ROLLOVER=false
 ```
 
 Do not add these values to React `VITE_*` variables.
@@ -365,6 +377,38 @@ Render logs will include entries like:
 If the instance still OOMs, paste only the memory log lines and Render OOM event
 around one `/api/chat` request. Do not paste secret env vars.
 
+## Billing Deployment Notes
+
+SonicMind supports Stripe Checkout, Stripe Customer Portal, webhook reconciliation, and direct Creator to Pro upgrades.
+
+Backend-only Stripe env vars:
+
+```text
+STRIPE_SECRET_KEY=<backend-only Stripe secret key>
+STRIPE_WEBHOOK_SECRET=<backend-only Stripe webhook signing secret>
+STRIPE_CREATOR_PRICE_ID=price_...
+STRIPE_PRO_PRICE_ID=price_...
+FRONTEND_BASE_URL=https://sonicmind.onrender.com
+SONICMIND_ENABLE_DEMO_BILLING_ROLLOVER=false
+```
+
+The production webhook endpoint should be:
+
+```text
+https://sonicmind-api.onrender.com/api/billing/webhook
+```
+
+Subscribe it to:
+
+- `checkout.session.completed`
+- `customer.subscription.created`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+- `invoice.paid`
+- `invoice.payment_failed`
+
+Direct Creator to Pro upgrades call `POST /api/billing/subscription-plan`. The backend updates the existing Stripe subscription item price and then syncs the local `subscriptions` and `users` rows. Downgrades, payment methods, invoices, and cancellation remain in Stripe Customer Portal.
+
 ## Optional Blueprint
 
 This repo includes `render.yaml` with placeholders only. If you use Render Blueprints, update service names and URLs after creation:
@@ -390,17 +434,15 @@ cd frontend && npm run build
 
 Results:
 
-- `python -m pytest`: failed locally because the global Miniforge Python does not have `pytest` installed.
-- `.venv/bin/python -m pytest`: passed, `21 passed, 1 skipped`.
-- `.venv/bin/python scripts/memory_probe.py --mode lexical`: passed, backend import and lexical retrieval held near `54 MB` RSS.
+- `.venv/bin/python -m pytest`: passed, `47 passed, 1 skipped`.
+- `.venv/bin/python scripts/memory_probe.py --mode lexical`: passed, backend import and lexical retrieval held near `55 MB` RSS.
 - `.venv/bin/python scripts/memory_probe.py --mode faiss`: entered semantic mode and loaded FAISS/model path, but the local process terminated after `BAAI/bge-m3` model load reached about `959 MB` RSS.
-- `python -m uvicorn ...`: global Python does not have `uvicorn` installed.
 - `.venv/bin/python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000`: started successfully.
 - `/api/health`: returned `knowledge_base_ready: true`.
 - `npm install`: completed with peer dependency warnings from optional WASM packages, no vulnerabilities.
 - `npm run build`: passed.
 
-On Render, `python -m pytest` and `python -m uvicorn` run in Render's installed Python environment after `pip install -r requirements.txt`, so they should have the required packages.
+On Render, the backend should install `requirements-production.txt` for the 2 GB service.
 
 ## Exact Render Commands
 
@@ -428,9 +470,9 @@ dist
 ## Remaining Deployment Risks
 
 - The FAISS index and processed JSONL files are tracked now; if they grow beyond Git/provider limits later, move them to object storage and download during build.
-- The backend may need at least a Starter-sized instance because `sentence-transformers`, `torch`, and FAISS can be memory-heavy.
+- Production lightweight mode is designed for the 2 GB service; semantic FAISS mode may need a 4 GB or 8 GB instance or hosted vector search.
 - Spotify, Tavily, and Discogs features degrade gracefully when credentials are missing, but recommendation quality improves when those backend-only credentials are configured.
-- Payment/Stripe is intentionally not integrated yet.
+- Stripe billing requires valid backend-only Stripe env vars and webhook delivery. Checkout, Customer Portal, webhooks, and Creator to Pro upgrades are implemented; extra-pack purchases are still planned.
 
 ## References
 

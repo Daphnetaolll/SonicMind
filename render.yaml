@@ -30,7 +30,7 @@ services:
       - key: STRIPE_PRO_PRICE_ID
         sync: false
       - key: FRONTEND_BASE_URL
-        value: https://sonicmind-frontend.onrender.com
+        value: https://sonicmind.onrender.com
       - key: SONICMIND_ENABLE_DEMO_BILLING_ROLLOVER
         value: "false"
       - key: LLM_API_KEY
@@ -39,7 +39,7 @@ services:
         sync: false
       - key: BACKEND_CORS_ORIGINS
         # Include every browser origin that hosts the React app; CORS compares exact origins.
-        value: https://sonicmind.onrender.com,https://sonicmind-frontend.onrender.com
+        value: https://sonicmind.onrender.com
       - key: APP_ENV
         value: production
       - key: SONICMIND_MODE

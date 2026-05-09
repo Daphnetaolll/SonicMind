@@ -153,7 +153,7 @@ Generated: 2026-05-05T17:11:06
 - Spotify is currently rate limited by the provider after the 80-question run; wait for the limit window to clear before manually verifying playable Spotify cards again.
 - Automated answer scoring is heuristic; manually inspect a few nuanced music-history and recommendation answers for portfolio polish.
 - External web search can still produce noisy candidate tracks when the knowledge base lacks exact source-grounded track pairs.
-- Payment/Stripe remains intentionally unimplemented; upgrade and extra-pack buttons are placeholders.
+- Historical note: this QA pass happened before Stripe was connected. Current code now supports Creator/Pro subscriptions, Stripe Checkout, Customer Portal, webhooks, and Creator to Pro upgrades; extra-pack purchases remain placeholders.
 - Legacy Streamlit files remain intentionally preserved and were not deleted.
 
 ## Next Recommended Improvements
@@ -161,4 +161,4 @@ Generated: 2026-05-05T17:11:06
 - Add mocked Spotify unit tests so recommendation card behavior can be tested without burning live API quota.
 - Add a small local recommendation cache for common demo prompts like deep house studying, dark minimal techno, and Detroit techno beginners.
 - Add a frontend lint command if the project grows beyond the current portfolio MVP.
-- When Stripe is added, replace placeholder plan buttons with checkout/session APIs and webhook-backed billing period updates.
+- Add a Stripe test-mode browser suite for checkout, webhook reconciliation, cancellation, and Creator to Pro upgrades.
