@@ -55,14 +55,11 @@ ARTIST_PROFILE_PATTERNS = (
     r"\bwhat\s+do\s+you\s+know\s+about\s+(?P<name>[^?!.]+)",
     r"(?:介绍一下|介紹一下|介绍|介紹|谁是|誰是)\s*(?P<name>[A-Za-z0-9&'’.\- ]{2,80})",
 )
-<<<<<<< HEAD
 ALBUM_ARTIST_PATTERNS = (
     r"\b(?P<name>[A-Za-z0-9&'’.\- ]{2,80})['’]s\s+(?:popular\s+|best\s+|top\s+)?albums?\b",
     r"\b(?:popular|best|top|recommend(?:ed)?)\s+albums?\s+(?:by|from)\s+(?P<name>[A-Za-z0-9&'’.\- ]{2,80})",
     r"\balbums?\s+(?:by|from)\s+(?P<name>[A-Za-z0-9&'’.\- ]{2,80})",
 )
-=======
->>>>>>> f1eee7b0974a05ed99f48f787a7339e8bc6a9c19
 ENTITY_NAME_PARTICLES = {"and", "of", "de", "del", "da", "van", "von", "&"}
 
 MOOD_GENRE_HINTS = (
@@ -106,19 +103,11 @@ def _known_genre_in_text(text: str) -> str | None:
 
 
 def _display_entity_name(candidate: str) -> str:
-<<<<<<< HEAD
     # Preserve user capitalization when present; otherwise make extracted artist names readable.
     if any(char.isupper() for char in candidate):
         return candidate
 
     words: list[str] = []
-=======
-    # Preserve intentional capitalization, otherwise make extracted lower-case names readable for Spotify/search.
-    if any(char.isupper() for char in candidate):
-        return candidate
-
-    words = []
->>>>>>> f1eee7b0974a05ed99f48f787a7339e8bc6a9c19
     for word in candidate.split():
         lowered = word.lower()
         if lowered in ENTITY_NAME_PARTICLES:
@@ -130,16 +119,10 @@ def _display_entity_name(candidate: str) -> str:
     return " ".join(words)
 
 
-<<<<<<< HEAD
 def _clean_artist_candidate(candidate: str) -> str | None:
     # Strip prompt scaffolding without removing artist names such as "DJ Seinfeld".
     cleaned = re.sub(r"\s+", " ", candidate).strip(" ?.!,:;\"'")
     cleaned = re.sub(r"^(?:recommend|recommand|show|give|find|play)(?:\s+me)?\s+", "", cleaned, flags=re.I)
-=======
-def _clean_profile_artist_candidate(candidate: str) -> str | None:
-    # Strip question scaffolding without deleting artist names like "DJ Seinfeld".
-    cleaned = re.sub(r"\s+", " ", candidate).strip(" ?.!,:;\"'")
->>>>>>> f1eee7b0974a05ed99f48f787a7339e8bc6a9c19
     cleaned = re.sub(r"^(?:the\s+artist\s+|artist\s+|producer\s+)", "", cleaned, flags=re.I)
     cleaned = re.sub(r"\s+(?:in|from|for)\s+(?:music|techno|house|edm|electronic music).*$", "", cleaned, flags=re.I)
     cleaned = cleaned.strip(" ?.!,:;\"'")
@@ -147,26 +130,17 @@ def _clean_profile_artist_candidate(candidate: str) -> str | None:
         return None
 
     lowered = cleaned.lower()
-<<<<<<< HEAD
     if lowered in {"album", "artist", "producer", "dj", "music", "this", "that", "it"}:
         return None
     if _known_genre_in_text(cleaned):
         return None
     if re.search(r"\b(?:album|albums|genre|style|scene|music|track|tracks|song|songs)\b", lowered):
-=======
-    if lowered in {"music", "artist", "producer", "dj", "this", "that", "it"}:
-        return None
-    if _known_genre_in_text(cleaned):
-        return None
-    if re.search(r"\b(?:genre|style|scene|music)\b", lowered):
->>>>>>> f1eee7b0974a05ed99f48f787a7339e8bc6a9c19
         return None
     if not re.search(r"[A-Za-z]", cleaned):
         return None
     return _display_entity_name(cleaned)
 
 
-<<<<<<< HEAD
 def _detect_artist_from_patterns(query: str, patterns: tuple[str, ...]) -> str | None:
     # Keep artist-name extraction centralized so profile and album prompts resolve consistently.
     for pattern in patterns:
@@ -174,15 +148,6 @@ def _detect_artist_from_patterns(query: str, patterns: tuple[str, ...]) -> str |
         if not match:
             continue
         candidate = _clean_artist_candidate(match.group("name"))
-=======
-def _detect_profile_artist_name(query: str) -> str | None:
-    # Unknown "who is ..." music questions should search artist metadata instead of staying generic.
-    for pattern in ARTIST_PROFILE_PATTERNS:
-        match = re.search(pattern, query, flags=re.I)
-        if not match:
-            continue
-        candidate = _clean_profile_artist_candidate(match.group("name"))
->>>>>>> f1eee7b0974a05ed99f48f787a7339e8bc6a9c19
         if candidate:
             return candidate
     return None
@@ -264,17 +229,11 @@ def understand_query(query: str) -> QueryUnderstandingResult:
     lowered = query.lower()
     entities = _extract_known_entities(query)
     genre_hint = _detect_mood_genre(query) or _detect_genre(query)
-<<<<<<< HEAD
     profile_artist_name = _detect_artist_from_patterns(query, ARTIST_PROFILE_PATTERNS) if not genre_hint else None
     album_artist_name = _detect_artist_from_patterns(query, ALBUM_ARTIST_PATTERNS)
     detected_artist_name = album_artist_name or profile_artist_name
     if detected_artist_name and not any(item.name.lower() == detected_artist_name.lower() for item in entities):
         entities.append(MusicEntityMention(name=detected_artist_name, type="artist", confidence=0.66))
-=======
-    profile_artist_name = _detect_profile_artist_name(query) if not genre_hint else None
-    if profile_artist_name and not any(item.name.lower() == profile_artist_name.lower() for item in entities):
-        entities.append(MusicEntityMention(name=profile_artist_name, type="artist", confidence=0.64))
->>>>>>> f1eee7b0974a05ed99f48f787a7339e8bc6a9c19
 
     is_comparison = _contains_any(lowered, ("difference between", "compare", "vs", "versus", "区别", "对比"))
     is_recommendation = _contains_any(
@@ -357,14 +316,11 @@ def understand_query(query: str) -> QueryUnderstandingResult:
         primary_entity_type = "track"
         display_target = "tracks"
         needs_spotify = True
-<<<<<<< HEAD
     elif album_artist_name and _contains_any(lowered, ("album", "albums", "专辑")):
         intent = "album_recommendation"
         primary_entity_type = "artist"
         display_target = "albums"
         needs_spotify = True
-=======
->>>>>>> f1eee7b0974a05ed99f48f787a7339e8bc6a9c19
     elif profile_artist_name:
         intent = "artist_profile"
         primary_entity_type = "artist"
