@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 from fastapi.testclient import TestClient
 
 from backend.config.plans import EXTRA_PACKS, get_plan
@@ -116,3 +118,62 @@ def test_production_paid_plan_without_provider_subscription_falls_back_to_free(m
     assert quota.current_plan == "free"
     assert quota.charge_type == "free"
     assert quota.subscription_id is None
+
+
+def test_production_provider_subscription_overrides_stale_free_user_plan(monkeypatch) -> None:
+    # Stripe subscription rows are the source of truth when users.plan has not refreshed yet.
+    class FakeConn:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> None:
+            return None
+
+        def commit(self) -> None:
+            return None
+
+    now = datetime.now(UTC)
+    captured_user_plan: dict = {}
+
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("SONICMIND_ENABLE_DEMO_BILLING_ROLLOVER", "false")
+    monkeypatch.setattr(quota_service, "connect_db", lambda: FakeConn())
+    monkeypatch.setattr(
+        quota_service.user_repository,
+        "get_user_by_id",
+        lambda conn, user_id: {
+            "id": user_id,
+            "plan": "free",
+            "subscription_status": "active",
+            "billing_period_start": None,
+            "billing_period_end": None,
+        },
+    )
+    monkeypatch.setattr(quota_service.credit_repository, "get_active_credit_balance", lambda conn, user_id, now: 0)
+    monkeypatch.setattr(quota_service.user_repository, "update_extra_credit_snapshot", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        quota_service.subscription_repository,
+        "get_current_provider_subscription",
+        lambda conn, user_id, provider: {
+            "id": "local-sub-creator",
+            "user_id": user_id,
+            "plan_code": "creator",
+            "status": "active",
+            "current_period_start": now - timedelta(days=1),
+            "current_period_end": now + timedelta(days=29),
+        },
+    )
+    monkeypatch.setattr(
+        quota_service.user_repository,
+        "update_user_plan",
+        lambda *args, **kwargs: captured_user_plan.update(kwargs),
+    )
+    monkeypatch.setattr(quota_service.usage_repository, "count_charged_questions", lambda *args, **kwargs: 3)
+
+    quota = quota_service.get_quota_status("user-provider-active")
+
+    assert quota.current_plan == "creator"
+    assert quota.charge_type == "subscription"
+    assert quota.subscription_id == "local-sub-creator"
+    assert quota.remaining_monthly_questions == 197
+    assert captured_user_plan["plan"] == "creator"

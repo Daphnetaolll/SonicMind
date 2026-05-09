@@ -185,7 +185,6 @@ def get_quota_status(user_id: str) -> QuotaStatus:
                 extra_question_credits=0,
             )
 
-        plan = _effective_plan(row)
         extra_credits = credit_repository.get_active_credit_balance(conn, user_id=user_id, now=now)
         user_repository.update_extra_credit_snapshot(
             conn,
@@ -193,11 +192,7 @@ def get_quota_status(user_id: str) -> QuotaStatus:
             extra_question_credits=extra_credits,
         )
 
-        if plan.daily_limit is not None:
-            status = _free_quota_status(conn, user_id=user_id, plan=plan, extra_credits=extra_credits, now=now)
-            conn.commit()
-            return status
-
+        # Stripe-backed subscriptions are the production source of truth, even if users.plan is stale.
         provider_subscription = subscription_repository.get_current_provider_subscription(
             conn,
             user_id=user_id,
@@ -209,6 +204,11 @@ def get_quota_status(user_id: str) -> QuotaStatus:
             period_start = provider_subscription.get("current_period_start")
             period_end = provider_subscription.get("current_period_end")
         else:
+            plan = _effective_plan(row)
+            if plan.daily_limit is not None:
+                status = _free_quota_status(conn, user_id=user_id, plan=plan, extra_credits=extra_credits, now=now)
+                conn.commit()
+                return status
             if not _demo_paid_rollover_enabled():
                 free_plan = get_plan("free")
                 status = _free_quota_status(conn, user_id=user_id, plan=free_plan, extra_credits=extra_credits, now=now)
