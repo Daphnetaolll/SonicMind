@@ -53,6 +53,14 @@ class BillingWebhookResult:
     event_type: str | None = None
 
 
+@dataclass(frozen=True)
+class BillingPlanChangeResult:
+    # Plan changes return only local identifiers and the selected SonicMind plan.
+    user_id: str
+    subscription_id: str
+    plan_code: str
+
+
 def _stripe_module() -> Any:
     # Import Stripe lazily so tests can mock this boundary without requiring real credentials.
     try:
@@ -254,6 +262,74 @@ def create_portal_session(*, user: AuthUser) -> BillingUrlResult:
     if not url:
         raise BillingProviderError("Stripe billing portal did not return a redirect URL.")
     return BillingUrlResult(url=str(url))
+
+
+def change_subscription_plan(*, user: AuthUser, plan_code: str) -> BillingPlanChangeResult:
+    # Direct upgrades replace the existing subscription item price instead of creating a second subscription.
+    plan = get_plan(plan_code)
+    price_id = _price_id_for_plan(plan.code)
+    stripe = _configured_stripe()
+
+    with connect_db() as conn:
+        provider_subscription = subscription_repository.get_current_provider_subscription(
+            conn,
+            user_id=user.id,
+            provider=PROVIDER,
+        )
+
+    if not provider_subscription or not provider_subscription.get("provider_subscription_id"):
+        raise BillingValidationError("No active Stripe subscription is linked to this account yet.")
+
+    current_plan = provider_subscription.get("plan_code")
+    if current_plan == plan.code:
+        return BillingPlanChangeResult(
+            user_id=user.id,
+            subscription_id=provider_subscription["id"],
+            plan_code=plan.code,
+        )
+    if current_plan == "pro" and plan.code == "creator":
+        raise BillingValidationError("Downgrades are handled in Stripe billing portal.")
+
+    provider_subscription_id = provider_subscription["provider_subscription_id"]
+    subscription = _retrieve_subscription(stripe, provider_subscription_id)
+    item = _first_subscription_item(subscription)
+    subscription_item_id = _stripe_id(item)
+    if not subscription_item_id:
+        raise BillingProviderError("Stripe subscription item lookup failed.")
+
+    try:
+        updated_subscription = stripe.Subscription.modify(
+            provider_subscription_id,
+            cancel_at_period_end=False,
+            items=[
+                {
+                    "id": subscription_item_id,
+                    "price": price_id,
+                    "quantity": _stripe_get(item, "quantity", 1) or 1,
+                }
+            ],
+            metadata={"user_id": user.id, "plan_code": plan.code},
+            payment_behavior="error_if_incomplete",
+            proration_behavior="always_invoice",
+        )
+    except Exception as exc:  # pragma: no cover - exact Stripe exception class varies by SDK version.
+        raise BillingProviderError("Stripe subscription update is unavailable right now.") from exc
+
+    with connect_db() as conn:
+        synced_user_id, local_subscription_id = _sync_subscription(
+            conn,
+            subscription=updated_subscription,
+            fallback_user_id=user.id,
+        )
+        if synced_user_id != user.id or local_subscription_id is None:
+            raise BillingProviderError("Stripe subscription update could not be synced.")
+        conn.commit()
+
+    return BillingPlanChangeResult(
+        user_id=synced_user_id,
+        subscription_id=local_subscription_id,
+        plan_code=plan.code,
+    )
 
 
 def construct_stripe_event(*, payload: bytes, stripe_signature: str | None) -> Any:

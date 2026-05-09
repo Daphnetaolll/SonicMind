@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Badge, Button, Container, Modal } from 'react-bootstrap';
 import {
+  changeSubscriptionPlan,
   createCheckoutSession,
   createPortalSession,
   fetchAccountStatus,
@@ -87,6 +88,7 @@ export default function PricingPage() {
   const usage = accountQuery.data?.usage;
   const currentPlan = usage?.current_plan || user?.plan || 'free';
   const paidPlanActive = ['creator', 'pro'].includes(currentPlan);
+  const canUpgradeToPro = currentPlan === 'creator';
 
   useEffect(() => {
     // Refresh persisted account data after Stripe webhooks update backend-owned plan fields.
@@ -127,6 +129,18 @@ export default function PricingPage() {
     },
   });
 
+  const planChangeMutation = useMutation({
+    mutationFn: changeSubscriptionPlan,
+    onSuccess: (data) => {
+      // Stripe updates are synced back through /api/me shape so page badges refresh immediately.
+      queryClient.setQueryData(['account-status'], data);
+      if (data?.user) {
+        setUser(data.user);
+      }
+      setNotice('Your Pro plan is active.');
+    },
+  });
+
   const handlePlanAction = (plan) => {
     // Logged-out visitors must authenticate before a Stripe session can be attached to their account.
     if (!token) {
@@ -135,6 +149,10 @@ export default function PricingPage() {
     }
     if (plan.code === 'free') {
       navigate('/chat');
+      return;
+    }
+    if (canUpgradeToPro && plan.code === 'pro') {
+      planChangeMutation.mutate({ plan_code: plan.code });
       return;
     }
     if (paidPlanActive && plan.code !== 'free') {
@@ -174,6 +192,8 @@ export default function PricingPage() {
           message={
             checkoutMutation.isError
               ? getApiError(checkoutMutation.error, 'Could not start checkout.')
+              : planChangeMutation.isError
+                ? getApiError(planChangeMutation.error, 'Could not update your subscription.')
               : portalMutation.isError
                 ? getApiError(portalMutation.error, 'Could not open billing portal.')
                 : ''
@@ -201,10 +221,17 @@ export default function PricingPage() {
               <Button
                 type="button"
                 variant={plan.code === 'free' ? 'outline-primary' : 'primary'}
-                disabled={checkoutMutation.isPending || portalMutation.isPending || (plan.code === currentPlan && plan.code === 'free')}
+                disabled={
+                  checkoutMutation.isPending
+                  || portalMutation.isPending
+                  || planChangeMutation.isPending
+                  || (plan.code === currentPlan && plan.code === 'free')
+                }
                 onClick={() => handlePlanAction(plan)}
               >
-                {paidPlanActive && plan.code !== 'free'
+                {canUpgradeToPro && plan.code === 'pro'
+                  ? 'Upgrade to Pro'
+                  : paidPlanActive && plan.code !== 'free'
                   ? 'Manage Billing'
                   : plan.code === 'free'
                     ? currentPlan === 'free'

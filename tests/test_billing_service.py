@@ -263,3 +263,84 @@ def test_process_subscription_updated_fails_when_plan_cannot_sync(monkeypatch) -
         )
 
     assert fake_conn.committed is False
+
+
+def test_change_subscription_plan_replaces_existing_subscription_item(monkeypatch) -> None:
+    # Upgrades must replace the current item price; adding a second item would double-bill the customer.
+    fake_conn = FakeConn()
+    captured_modify: dict = {}
+    captured_subscription: dict = {}
+    captured_user: dict = {}
+    monkeypatch.setenv("STRIPE_CREATOR_PRICE_ID", "price_creator_test")
+    monkeypatch.setenv("STRIPE_PRO_PRICE_ID", "price_pro_test")
+
+    class FakeSubscription:
+        @staticmethod
+        def retrieve(subscription_id):
+            assert subscription_id == "sub_test_upgrade"
+            return {
+                "id": "sub_test_upgrade",
+                "status": "active",
+                "customer": "cus_test_upgrade",
+                "metadata": {"user_id": "user-upgrade", "plan_code": "creator"},
+                "current_period_start": 1_700_000_000,
+                "current_period_end": 4_100_000_000,
+                "items": {"data": [{"id": "si_creator", "quantity": 1, "price": {"id": "price_creator_test"}}]},
+            }
+
+        @staticmethod
+        def modify(subscription_id, **kwargs):
+            captured_modify.update({"subscription_id": subscription_id, **kwargs})
+            return {
+                "id": subscription_id,
+                "status": "active",
+                "customer": "cus_test_upgrade",
+                "metadata": kwargs["metadata"],
+                "current_period_start": 1_700_000_000,
+                "current_period_end": 4_100_000_000,
+                "items": {"data": [{"id": "si_creator", "quantity": 1, "price": {"id": "price_pro_test"}}]},
+            }
+
+    monkeypatch.setattr(billing_service, "_configured_stripe", lambda: SimpleNamespace(Subscription=FakeSubscription))
+    monkeypatch.setattr(billing_service, "connect_db", lambda: fake_conn)
+    monkeypatch.setattr(
+        billing_service.subscription_repository,
+        "get_current_provider_subscription",
+        lambda conn, user_id, provider: {
+            "id": "local-sub-upgrade",
+            "user_id": user_id,
+            "plan_code": "creator",
+            "provider": provider,
+            "provider_subscription_id": "sub_test_upgrade",
+        },
+    )
+    monkeypatch.setattr(
+        billing_service.subscription_repository,
+        "get_provider_subscription",
+        lambda conn, provider, provider_subscription_id: {"id": "local-sub-upgrade", "user_id": "user-upgrade"},
+    )
+
+    def fake_upsert(conn, **kwargs):
+        captured_subscription.update(kwargs)
+        return {"id": "local-sub-upgrade"}
+
+    monkeypatch.setattr(billing_service.subscription_repository, "upsert_provider_subscription", fake_upsert)
+    monkeypatch.setattr(
+        billing_service.user_repository,
+        "update_user_plan",
+        lambda conn, **kwargs: captured_user.update(kwargs),
+    )
+
+    result = billing_service.change_subscription_plan(
+        user=AuthUser(id="user-upgrade", email="creator@example.com", display_name=None, plan="creator"),
+        plan_code="pro",
+    )
+
+    assert result.plan_code == "pro"
+    assert captured_modify["subscription_id"] == "sub_test_upgrade"
+    assert captured_modify["cancel_at_period_end"] is False
+    assert captured_modify["items"] == [{"id": "si_creator", "price": "price_pro_test", "quantity": 1}]
+    assert captured_modify["payment_behavior"] == "error_if_incomplete"
+    assert captured_modify["proration_behavior"] == "always_invoice"
+    assert captured_subscription["plan_code"] == "pro"
+    assert captured_user["plan"] == "pro"

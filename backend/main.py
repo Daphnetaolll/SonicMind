@@ -31,6 +31,7 @@ from backend.schemas import (
     LoginRequest,
     PricingResponse,
     RegisterRequest,
+    SubscriptionPlanChangeRequest,
     UserResponse,
     chat_result_to_response,
     extra_pack_to_response,
@@ -44,6 +45,7 @@ from backend.services.billing_service import (
     BillingProviderError,
     BillingValidationError,
     construct_stripe_event,
+    change_subscription_plan,
     create_checkout_session,
     create_portal_session,
     process_stripe_event,
@@ -116,6 +118,20 @@ app.add_middleware(
 )
 
 
+def _account_status_response(user: AuthUser) -> AccountStatusResponse:
+    # Always derive the displayed plan from quota because Stripe reconciliation can update it lazily.
+    quota = get_quota_status(user.id)
+    usage = quota_to_response(quota)
+    synced_user = UserResponse(
+        id=user.id,
+        email=user.email,
+        display_name=user.display_name,
+        plan=usage.current_plan,
+        subscription_status=user.subscription_status,
+    )
+    return AccountStatusResponse(user=synced_user, usage=usage)
+
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> AuthUser:
@@ -181,16 +197,7 @@ def pricing() -> PricingResponse:
 @app.get("/api/me", response_model=AccountStatusResponse)
 def me(current_user: AuthUser = Depends(get_current_user)) -> AccountStatusResponse:
     # Account status gives React fresh server-owned quota data after refreshes and logins.
-    quota = get_quota_status(current_user.id)
-    usage = quota_to_response(quota)
-    synced_user = UserResponse(
-        id=current_user.id,
-        email=current_user.email,
-        display_name=current_user.display_name,
-        plan=usage.current_plan,
-        subscription_status=current_user.subscription_status,
-    )
-    return AccountStatusResponse(user=synced_user, usage=usage)
+    return _account_status_response(current_user)
 
 
 @app.post("/api/billing/checkout-session", response_model=BillingUrlResponse)
@@ -222,6 +229,23 @@ def billing_portal_session(current_user: AuthUser = Depends(get_current_user)) -
     except BillingProviderError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     return BillingUrlResponse(url=result.url)
+
+
+@app.post("/api/billing/subscription-plan", response_model=AccountStatusResponse)
+def billing_subscription_plan(
+    payload: SubscriptionPlanChangeRequest,
+    current_user: AuthUser = Depends(get_current_user),
+) -> AccountStatusResponse:
+    # Direct plan changes are for active Stripe subscriptions; checkout still handles first-time purchases.
+    try:
+        change_subscription_plan(user=current_user, plan_code=payload.plan_code)
+    except BillingValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except BillingConfigurationError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    except BillingProviderError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+    return _account_status_response(current_user)
 
 
 @app.post("/api/billing/webhook", response_model=BillingWebhookResponse)

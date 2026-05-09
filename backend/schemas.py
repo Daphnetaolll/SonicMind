@@ -109,6 +109,11 @@ class CheckoutSessionRequest(BaseModel):
     plan_code: Literal["creator", "pro"]
 
 
+class SubscriptionPlanChangeRequest(BaseModel):
+    # Existing Stripe subscribers can request a supported paid plan without exposing price ids.
+    plan_code: Literal["creator", "pro"]
+
+
 class BillingUrlResponse(BaseModel):
     url: str
 

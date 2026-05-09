@@ -74,6 +74,11 @@ export async function createPortalSession() {
   return response.data;
 }
 
+export async function changeSubscriptionPlan(payload) {
+  const response = await apiClient.post('/api/billing/subscription-plan', payload);
+  return response.data;
+}
+
 export async function fetchHistory() {
   const response = await apiClient.get('/api/history');
   return response.data;
