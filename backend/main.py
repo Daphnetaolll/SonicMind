@@ -31,6 +31,7 @@ from backend.schemas import (
     LoginRequest,
     PricingResponse,
     RegisterRequest,
+    UserResponse,
     chat_result_to_response,
     extra_pack_to_response,
     plan_to_response,
@@ -181,7 +182,15 @@ def pricing() -> PricingResponse:
 def me(current_user: AuthUser = Depends(get_current_user)) -> AccountStatusResponse:
     # Account status gives React fresh server-owned quota data after refreshes and logins.
     quota = get_quota_status(current_user.id)
-    return AccountStatusResponse(user=user_to_response(current_user), usage=quota_to_response(quota))
+    usage = quota_to_response(quota)
+    synced_user = UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        display_name=current_user.display_name,
+        plan=usage.current_plan,
+        subscription_status=current_user.subscription_status,
+    )
+    return AccountStatusResponse(user=synced_user, usage=usage)
 
 
 @app.post("/api/billing/checkout-session", response_model=BillingUrlResponse)

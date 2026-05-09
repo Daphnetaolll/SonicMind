@@ -170,3 +170,40 @@ def test_login_returns_clean_error_when_backend_storage_is_unavailable(monkeypat
 
     assert response.status_code == 503
     assert response.json()["detail"] == "Account or quota storage is unavailable right now. Please try again shortly."
+
+
+def test_account_status_user_plan_follows_quota_plan(monkeypatch) -> None:
+    # Stripe reconciliation can discover an active paid plan while the auth user row is still stale.
+    user = AuthUser(id="user-paid-stale", email="creator@example.com", display_name="Creator", plan="free")
+    quota = QuotaStatus(
+        allowed=True,
+        charge_type="subscription",
+        remaining=197,
+        subscription_id="local-sub-creator",
+        period_start=None,
+        period_end=None,
+        current_plan="creator",
+        current_plan_name="Student / Creator",
+        price_label="$9/month",
+        remaining_daily_questions=None,
+        remaining_monthly_questions=197,
+        extra_question_credits=0,
+        max_answer_tokens=800,
+        rag_top_k=5,
+        spotify_limit=10,
+        save_history=True,
+        favorites=True,
+        playlist_style=True,
+    )
+
+    monkeypatch.setattr("backend.main.get_user", lambda user_id: user if user_id == "user-paid-stale" else None)
+    monkeypatch.setattr("backend.main.get_quota_status", lambda user_id: quota)
+
+    token = create_access_token(user_id="user-paid-stale")
+    response = client.get("/api/me", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["usage"]["current_plan"] == "creator"
+    assert data["usage"]["current_plan_name"] == "Student / Creator"
+    assert data["user"]["plan"] == "creator"

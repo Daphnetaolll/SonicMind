@@ -156,3 +156,110 @@ def test_process_subscription_updated_upserts_subscription_and_user(monkeypatch)
     assert captured_user["user_id"] == "user-1"
     assert captured_user["plan"] == "creator"
     assert captured_event["subscription_id"] == "local-sub-1"
+
+
+def test_process_subscription_updated_uses_metadata_plan_when_price_is_unknown(monkeypatch) -> None:
+    # Metadata written by our Checkout session keeps access sync working if Stripe price ids drift.
+    fake_conn = FakeConn()
+    captured_subscription: dict = {}
+    captured_user: dict = {}
+    monkeypatch.setenv("STRIPE_CREATOR_PRICE_ID", "price_current_creator")
+    monkeypatch.setenv("STRIPE_PRO_PRICE_ID", "price_current_pro")
+    monkeypatch.setattr(billing_service, "_configured_stripe", lambda: SimpleNamespace())
+    monkeypatch.setattr(billing_service, "connect_db", lambda: fake_conn)
+    monkeypatch.setattr(
+        billing_service.billing_repository,
+        "insert_billing_event",
+        lambda *args, **kwargs: {"id": "billing-event-2"},
+    )
+    monkeypatch.setattr(
+        billing_service.billing_repository,
+        "mark_billing_event_processed",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        billing_service.subscription_repository,
+        "get_provider_subscription",
+        lambda conn, provider, provider_subscription_id: None,
+    )
+
+    def fake_upsert(conn, **kwargs):
+        captured_subscription.update(kwargs)
+        return {"id": "local-sub-2"}
+
+    monkeypatch.setattr(billing_service.subscription_repository, "upsert_provider_subscription", fake_upsert)
+    monkeypatch.setattr(
+        billing_service.user_repository,
+        "update_user_plan",
+        lambda conn, **kwargs: captured_user.update(kwargs),
+    )
+
+    result = billing_service.process_stripe_event(
+        {
+            "id": "evt_subscription_metadata_plan",
+            "type": "customer.subscription.updated",
+            "data": {
+                "object": {
+                    "id": "sub_test_456",
+                    "status": "active",
+                    "customer": "cus_test_456",
+                    "metadata": {"user_id": "user-2", "plan_code": "creator"},
+                    "items": {
+                        "data": [
+                            {
+                                "price": {"id": "price_old_creator"},
+                                "current_period_start": 1_700_000_000,
+                                "current_period_end": 4_100_000_000,
+                            }
+                        ]
+                    },
+                }
+            },
+        }
+    )
+
+    assert result.processed is True
+    assert captured_subscription["plan_code"] == "creator"
+    assert captured_subscription["provider_price_id"] == "price_old_creator"
+    assert captured_user["user_id"] == "user-2"
+    assert captured_user["plan"] == "creator"
+
+
+def test_process_subscription_updated_fails_when_plan_cannot_sync(monkeypatch) -> None:
+    # Actionable Stripe events must retry instead of being marked processed without a local plan update.
+    fake_conn = FakeConn()
+    monkeypatch.setenv("STRIPE_CREATOR_PRICE_ID", "price_current_creator")
+    monkeypatch.setenv("STRIPE_PRO_PRICE_ID", "price_current_pro")
+    monkeypatch.setattr(billing_service, "_configured_stripe", lambda: SimpleNamespace())
+    monkeypatch.setattr(billing_service, "connect_db", lambda: fake_conn)
+    monkeypatch.setattr(
+        billing_service.billing_repository,
+        "insert_billing_event",
+        lambda *args, **kwargs: {"id": "billing-event-3"},
+    )
+    monkeypatch.setattr(
+        billing_service.subscription_repository,
+        "get_provider_subscription",
+        lambda conn, provider, provider_subscription_id: None,
+    )
+
+    with pytest.raises(billing_service.BillingProviderError):
+        billing_service.process_stripe_event(
+            {
+                "id": "evt_subscription_missing_plan",
+                "type": "customer.subscription.updated",
+                "data": {
+                    "object": {
+                        "id": "sub_test_789",
+                        "status": "active",
+                        "customer": "cus_test_789",
+                        "metadata": {"user_id": "user-3"},
+                        "current_period_start": 1_700_000_000,
+                        "current_period_end": 4_100_000_000,
+                        "items": {"data": [{"price": {"id": "price_unknown"}}]},
+                    }
+                },
+            }
+        )
+
+    assert fake_conn.committed is False

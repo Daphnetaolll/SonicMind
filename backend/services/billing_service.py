@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -14,6 +15,15 @@ from src.services.auth_service import AuthUser
 
 PROVIDER = "stripe"
 SUPPORTED_CHECKOUT_PLANS = {"creator", "pro"}
+SUBSCRIPTION_SYNC_EVENT_TYPES = {
+    "checkout.session.completed",
+    "customer.subscription.created",
+    "customer.subscription.updated",
+    "customer.subscription.deleted",
+    "invoice.paid",
+    "invoice.payment_failed",
+}
+logger = logging.getLogger(__name__)
 
 
 class BillingConfigurationError(RuntimeError):
@@ -153,12 +163,31 @@ def _map_stripe_status(status: str | None) -> str:
 
 def _extract_subscription_price_id(subscription: Any) -> str | None:
     # SonicMind supports one monthly price per subscription in the first Stripe version.
+    item = _first_subscription_item(subscription)
+    price = _stripe_get(item, "price", {}) or {}
+    return _stripe_id(price)
+
+
+def _first_subscription_item(subscription: Any) -> Any | None:
+    # Stripe period fields may live on either the subscription or its first item depending on API version.
     items = _stripe_get(subscription, "items", {}) or {}
     data = _stripe_get(items, "data", []) or []
     if not data:
         return None
-    price = _stripe_get(data[0], "price", {}) or {}
-    return _stripe_id(price)
+    return data[0]
+
+
+def _metadata_plan_code(metadata: Any) -> str | None:
+    # Our Checkout session writes plan_code server-side; use it as a safe fallback for older price ids.
+    plan_code = _stripe_get(metadata, "plan_code")
+    return str(plan_code) if plan_code in SUPPORTED_CHECKOUT_PLANS else None
+
+
+def _subscription_period_datetime(subscription: Any, key: str) -> datetime | None:
+    value = _stripe_get(subscription, key)
+    if value in (None, ""):
+        value = _stripe_get(_first_subscription_item(subscription) or {}, key)
+    return _timestamp_to_datetime(value)
 
 
 def create_checkout_session(*, user: AuthUser, plan_code: str) -> BillingUrlResult:
@@ -268,14 +297,20 @@ def _sync_subscription(
     metadata = _stripe_get(subscription, "metadata", {}) or {}
     user_id = _stripe_get(metadata, "user_id") or fallback_user_id or (existing or {}).get("user_id")
     price_id = _extract_subscription_price_id(subscription) or (existing or {}).get("provider_price_id")
-    plan_code = _plan_code_for_price(price_id) or (existing or {}).get("plan_code")
+    plan_code = _plan_code_for_price(price_id) or _metadata_plan_code(metadata) or (existing or {}).get("plan_code")
     if not user_id or not plan_code:
+        logger.warning(
+            "Stripe subscription sync skipped: has_user=%s has_plan=%s has_price=%s",
+            bool(user_id),
+            bool(plan_code),
+            bool(price_id),
+        )
         return user_id, (existing or {}).get("id")
 
     plan = get_plan(plan_code)
     mapped_status = _map_stripe_status(_stripe_get(subscription, "status"))
-    period_start = _timestamp_to_datetime(_stripe_get(subscription, "current_period_start"))
-    period_end = _timestamp_to_datetime(_stripe_get(subscription, "current_period_end"))
+    period_start = _subscription_period_datetime(subscription, "current_period_start")
+    period_end = _subscription_period_datetime(subscription, "current_period_end")
     customer_id = _stripe_id(_stripe_get(subscription, "customer"))
     cancel_at_period_end = bool(_stripe_get(subscription, "cancel_at_period_end", False))
     local_subscription = subscription_repository.upsert_provider_subscription(
@@ -375,6 +410,9 @@ def process_stripe_event(event: Any) -> BillingWebhookResult:
             user_id, local_subscription_id = _sync_subscription(conn, subscription=data_object)
         elif event_type in {"invoice.paid", "invoice.payment_failed"}:
             user_id, local_subscription_id = _sync_from_invoice(conn, stripe=stripe, invoice=data_object)
+
+        if event_type in SUBSCRIPTION_SYNC_EVENT_TYPES and local_subscription_id is None:
+            raise BillingProviderError("Stripe subscription event could not be synced.")
 
         billing_repository.mark_billing_event_processed(
             conn,
