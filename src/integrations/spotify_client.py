@@ -144,8 +144,48 @@ def search_playlist(query: str, *, market: str = "US") -> dict | None:
 
 
 def get_artist_top_tracks(artist_id: str, *, market: str = "US") -> list[dict]:
-    data = _api_get(f"/artists/{artist_id}/top-tracks", {"market": market})
-    return data.get("tracks", [])
+    try:
+        data = _api_get(f"/artists/{artist_id}/top-tracks", {"market": market})
+        return data.get("tracks", [])
+    except RuntimeError:
+        artist = _api_get(f"/artists/{artist_id}")
+        artist_name = artist.get("name") or ""
+        return _search_artist_tracks(artist_name, market=market) if artist_name else []
+
+
+def _track_has_artist(track: dict, artist_name: str) -> bool:
+    # Spotify Search can return remixes and collaborations, so keep only tracks credited to the target artist.
+    artists = " ".join(artist.get("name", "") for artist in track.get("artists", []) if artist.get("name"))
+    normalized_artist = _normalize_match_text(artist_name)
+    normalized_artists = _normalize_match_text(artists)
+    return normalized_artist in normalized_artists or _token_overlap(artist_name, artists) >= 0.7
+
+
+def _search_artist_tracks(artist_name: str, *, market: str = "US", limit: int = 10) -> list[dict]:
+    # The deprecated top-tracks endpoint can return 403; search is the low-memory fallback for artist songs.
+    if not artist_name:
+        return []
+
+    queries = [
+        f'artist:"{artist_name}"',
+        f"{artist_name}",
+    ]
+    tracks: list[dict] = []
+    seen_ids: set[str] = set()
+    for query in queries:
+        data = search_items(query, ["track"], limit=limit, market=market)
+        for item in data.get("tracks", {}).get("items", []):
+            item_id = item.get("id")
+            if not item_id or item_id in seen_ids:
+                continue
+            if not _track_has_artist(item, artist_name):
+                continue
+            seen_ids.add(item_id)
+            tracks.append(item)
+        if len(tracks) >= limit:
+            break
+
+    return sorted(tracks, key=lambda item: item.get("popularity") or 0, reverse=True)[:limit]
 
 
 def get_artist_albums(artist_id: str, *, market: str = "US", limit: int = 20) -> list[dict]:
