@@ -1,9 +1,17 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Badge, Button, Container, Modal } from 'react-bootstrap';
-import { fetchPricing } from '../api/client.js';
+import {
+  createCheckoutSession,
+  createPortalSession,
+  fetchAccountStatus,
+  fetchPricing,
+  getApiError,
+} from '../api/client.js';
 import ErrorAlert from '../components/ErrorAlert.jsx';
 import LoadingState from '../components/LoadingState.jsx';
+import { useAuthStore } from '../store/authStore.js';
 
 const fallbackPricing = {
   plans: [
@@ -62,12 +70,90 @@ function limitLabel(plan) {
 
 export default function PricingPage() {
   const [notice, setNotice] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { token, user, setUser } = useAuthStore();
+  const checkoutState = searchParams.get('checkout');
+  const isPaymentProcessing = checkoutState === 'success';
   const pricingQuery = useQuery({ queryKey: ['pricing'], queryFn: fetchPricing });
+  const accountQuery = useQuery({
+    queryKey: ['account-status'],
+    queryFn: fetchAccountStatus,
+    enabled: Boolean(token),
+    refetchInterval: isPaymentProcessing ? 2000 : false,
+  });
   const pricing = pricingQuery.data || fallbackPricing;
+  const usage = accountQuery.data?.usage;
+  const currentPlan = usage?.current_plan || user?.plan || 'free';
+  const paidPlanActive = ['creator', 'pro'].includes(currentPlan);
 
-  // Pricing is public, but buttons remain placeholders until payment integration is intentionally added.
-  const handleComingSoon = (label) => {
-    setNotice(`${label} is coming soon. Payments are not connected yet, so this portfolio build keeps billing safe.`);
+  useEffect(() => {
+    // Refresh persisted account data after Stripe webhooks update backend-owned plan fields.
+    if (accountQuery.data?.user) {
+      setUser(accountQuery.data.user);
+    }
+  }, [accountQuery.data?.user, setUser]);
+
+  useEffect(() => {
+    // Checkout success only means Stripe accepted the redirect; the webhook still grants access.
+    if (checkoutState === 'success') {
+      setNotice('Payment received. SonicMind is syncing your plan from Stripe.');
+    }
+    if (checkoutState === 'canceled') {
+      setNotice('Checkout was canceled. Your plan has not changed.');
+      setSearchParams({}, { replace: true });
+    }
+  }, [checkoutState, setSearchParams]);
+
+  useEffect(() => {
+    if (isPaymentProcessing && paidPlanActive) {
+      setNotice('Your paid plan is active.');
+      setSearchParams({}, { replace: true });
+    }
+  }, [isPaymentProcessing, paidPlanActive, setSearchParams]);
+
+  const checkoutMutation = useMutation({
+    mutationFn: createCheckoutSession,
+    onSuccess: (data) => {
+      window.location.assign(data.url);
+    },
+  });
+
+  const portalMutation = useMutation({
+    mutationFn: createPortalSession,
+    onSuccess: (data) => {
+      window.location.assign(data.url);
+    },
+  });
+
+  const handlePlanAction = (plan) => {
+    // Logged-out visitors must authenticate before a Stripe session can be attached to their account.
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+    if (plan.code === 'free') {
+      navigate('/chat');
+      return;
+    }
+    if (paidPlanActive && plan.code !== 'free') {
+      portalMutation.mutate();
+      return;
+    }
+    checkoutMutation.mutate({ plan_code: plan.code });
+  };
+
+  const handleManageBilling = () => {
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+    portalMutation.mutate();
+  };
+
+  const handleExtraPackComingSoon = (label) => {
+    setNotice(`${label} extra packs are not connected in this first Stripe subscription version.`);
   };
 
   return (
@@ -84,6 +170,15 @@ export default function PricingPage() {
 
         {pricingQuery.isLoading ? <LoadingState label="Loading pricing..." /> : null}
         <ErrorAlert message={pricingQuery.isError ? 'Pricing is using local fallback data right now.' : ''} />
+        <ErrorAlert
+          message={
+            checkoutMutation.isError
+              ? getApiError(checkoutMutation.error, 'Could not start checkout.')
+              : portalMutation.isError
+                ? getApiError(portalMutation.error, 'Could not open billing portal.')
+                : ''
+          }
+        />
 
         <section className="pricing-grid" aria-label="SonicMind plans">
           {pricing.plans.map((plan) => (
@@ -106,9 +201,16 @@ export default function PricingPage() {
               <Button
                 type="button"
                 variant={plan.code === 'free' ? 'outline-primary' : 'primary'}
-                onClick={() => handleComingSoon(plan.name)}
+                disabled={checkoutMutation.isPending || portalMutation.isPending || (plan.code === currentPlan && plan.code === 'free')}
+                onClick={() => handlePlanAction(plan)}
               >
-                Coming Soon
+                {paidPlanActive && plan.code !== 'free'
+                  ? 'Manage Billing'
+                  : plan.code === 'free'
+                    ? currentPlan === 'free'
+                      ? 'Current Plan'
+                      : 'Open Chat'
+                    : 'Upgrade'}
               </Button>
             </article>
           ))}
@@ -122,13 +224,28 @@ export default function PricingPage() {
               <article className="extra-pack" key={pack.code}>
                 <strong>{pack.price_label}</strong>
                 <span>{pack.question_credits} extra questions</span>
-                <Button type="button" variant="outline-primary" onClick={() => handleComingSoon(pack.price_label)}>
+                <Button type="button" variant="outline-primary" onClick={() => handleExtraPackComingSoon(pack.price_label)}>
                   Coming Soon
                 </Button>
               </article>
             ))}
           </div>
         </section>
+
+        {paidPlanActive ? (
+          <section className="billing-panel" aria-label="Billing management">
+            <strong>Billing</strong>
+            <span>Manage payment methods, invoices, and cancellation in Stripe.</span>
+            <Button
+              type="button"
+              variant="light"
+              disabled={portalMutation.isPending}
+              onClick={handleManageBilling}
+            >
+              Manage Billing
+            </Button>
+          </section>
+        ) : null}
 
         <Modal show={Boolean(notice)} onHide={() => setNotice('')} centered>
           <Modal.Header closeButton>

@@ -139,7 +139,7 @@ Run backend tests from the project root:
 
 ## Pricing and usage model
 
-SonicMind now has a backend-enforced plan system. Stripe/payment is not integrated yet; upgrade and extra-pack buttons are placeholders.
+SonicMind now has a backend-enforced plan system. Stripe Checkout + Billing can be enabled for Creator and Pro monthly subscriptions; extra-pack buttons remain placeholders.
 
 | Plan | Price | Limit | Answer Tokens | RAG Top-K | Spotify Limit | Saved History | Favorites |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -161,7 +161,7 @@ Usage deduction rules:
 - Refreshing the page, loading saved history, and viewing favorites do not deduct usage.
 - Frontend counters are display-only; quota is enforced on the backend.
 
-The full design is documented in [docs/PRICING_AND_USAGE_PLAN.md](docs/PRICING_AND_USAGE_PLAN.md).
+The full design is documented in [docs/PRICING_AND_USAGE_PLAN.md](docs/PRICING_AND_USAGE_PLAN.md), and Stripe setup is documented in [docs/STRIPE_BILLING.md](docs/STRIPE_BILLING.md).
 
 ## Seed local plan test users
 
@@ -304,9 +304,9 @@ Deployment notes are documented in [docs/public_beta_deployment.md](docs/public_
 - Real chat requires a valid LLM key and Postgres database configuration.
 - Spotify embeds require backend-only `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`.
 - Spotify can temporarily return HTTP 429 after heavy QA runs. SonicMind now caches Spotify tokens/searches and backs off cleanly, but cards may stay hidden until the provider limit clears.
-- Stripe/payment is not integrated yet; upgrade and extra-pack buttons intentionally show Coming Soon.
-- Creator/Pro billing periods use local rolling 30-day windows until a payment provider supplies real renewal dates.
-- Extra-credit expiration is implemented for active balance display, but full FIFO credit consumption should be tightened when Stripe is added.
+- Stripe/payment is integrated for Creator and Pro subscriptions when backend Stripe env vars are configured; extra-pack purchases are still not implemented.
+- Creator/Pro production access requires Stripe webhook-backed subscription records; local rolling 30-day demo windows are disabled in production.
+- Extra-credit expiration is implemented for active balance display, but full FIFO credit consumption should be tightened when extra-pack payments are added.
 - The current auth token is a lightweight HMAC token suitable for this migration stage; production auth should use a stronger session/JWT strategy and a non-default `BACKEND_SECRET_KEY`.
 - Saved chat history exists for Creator/Pro, but the UI is still intentionally simple.
 - External web search quality depends on configured Tavily or Brave credentials.

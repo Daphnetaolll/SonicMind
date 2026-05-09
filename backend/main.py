@@ -11,15 +11,18 @@ from backend.services.memory_logging import log_memory
 
 log_memory("backend_module_start")
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from backend.schemas import (
     AccountStatusResponse,
     AuthResponse,
+    BillingUrlResponse,
+    BillingWebhookResponse,
     ChatRequest,
     ChatResponse,
+    CheckoutSessionRequest,
     FavoriteTrackRequest,
     FavoriteTrackResponse,
     FavoritesResponse,
@@ -35,6 +38,15 @@ from backend.schemas import (
     user_to_response,
 )
 from backend.config.plans import EXTRA_PACKS, PLANS
+from backend.services.billing_service import (
+    BillingConfigurationError,
+    BillingProviderError,
+    BillingValidationError,
+    construct_stripe_event,
+    create_checkout_session,
+    create_portal_session,
+    process_stripe_event,
+)
 from backend.services.account_service import AccountValidationError, create_account, sign_in_user
 from backend.services.chat_service import answer_user_question
 from backend.services.error_service import safe_error_message
@@ -158,7 +170,7 @@ def health() -> HealthResponse:
 
 @app.get("/api/pricing", response_model=PricingResponse)
 def pricing() -> PricingResponse:
-    # Pricing data is public and contains no payment secrets; buttons remain placeholders for now.
+    # Pricing data is public and contains no payment secrets or provider price ids.
     return PricingResponse(
         plans=[plan_to_response(plan) for plan in PLANS.values()],
         extra_packs=[extra_pack_to_response(pack) for pack in EXTRA_PACKS],
@@ -170,6 +182,62 @@ def me(current_user: AuthUser = Depends(get_current_user)) -> AccountStatusRespo
     # Account status gives React fresh server-owned quota data after refreshes and logins.
     quota = get_quota_status(current_user.id)
     return AccountStatusResponse(user=user_to_response(current_user), usage=quota_to_response(quota))
+
+
+@app.post("/api/billing/checkout-session", response_model=BillingUrlResponse)
+def billing_checkout_session(
+    payload: CheckoutSessionRequest,
+    current_user: AuthUser = Depends(get_current_user),
+) -> BillingUrlResponse:
+    # The browser chooses a plan; the backend chooses the configured Stripe price and redirect URLs.
+    try:
+        result = create_checkout_session(user=current_user, plan_code=payload.plan_code)
+    except BillingValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except BillingConfigurationError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    except BillingProviderError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+    return BillingUrlResponse(url=result.url)
+
+
+@app.post("/api/billing/portal-session", response_model=BillingUrlResponse)
+def billing_portal_session(current_user: AuthUser = Depends(get_current_user)) -> BillingUrlResponse:
+    # Paid users manage payment methods, invoices, and cancellation inside Stripe's hosted portal.
+    try:
+        result = create_portal_session(user=current_user)
+    except BillingValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except BillingConfigurationError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    except BillingProviderError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+    return BillingUrlResponse(url=result.url)
+
+
+@app.post("/api/billing/webhook", response_model=BillingWebhookResponse)
+async def billing_webhook(request: Request) -> BillingWebhookResponse:
+    # Stripe webhooks are authenticated by signature verification, not by SonicMind bearer tokens.
+    payload = await request.body()
+    try:
+        event = construct_stripe_event(
+            payload=payload,
+            stripe_signature=request.headers.get("stripe-signature"),
+        )
+        result = process_stripe_event(event)
+    except BillingValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except BillingConfigurationError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    except BillingProviderError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+
+    return BillingWebhookResponse(
+        received=result.received,
+        processed=result.processed,
+        duplicate=result.duplicate,
+        event_type=result.event_type,
+    )
 
 
 @app.post("/api/login", response_model=AuthResponse)

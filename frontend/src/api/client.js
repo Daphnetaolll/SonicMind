@@ -64,6 +64,16 @@ export async function fetchAccountStatus() {
   return response.data;
 }
 
+export async function createCheckoutSession(payload) {
+  const response = await apiClient.post('/api/billing/checkout-session', payload);
+  return response.data;
+}
+
+export async function createPortalSession() {
+  const response = await apiClient.post('/api/billing/portal-session');
+  return response.data;
+}
+
 export async function fetchHistory() {
   const response = await apiClient.get('/api/history');
   return response.data;

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from src.integrations.spotify_client import build_track_card
 from src.music.music_recommendation_planner import build_music_recommendation_plan
 from src.music.query_understanding import understand_query
@@ -111,12 +113,48 @@ def test_tell_me_about_genre_stays_genre_explanation() -> None:
     assert result.genre_hint == "house"
 
 
-def test_recent_dance_music_plan_falls_back_to_concrete_representative_tracks(monkeypatch) -> None:
-    # If live chart search has no exact artist-track pairs, return concrete tracks with a caution note.
+def test_recent_dance_music_plan_uses_recent_spotify_playlist_candidates(monkeypatch) -> None:
+    # Recent recommendations should avoid old curated classics when current Spotify signals are available.
+    current_year = datetime.now().year
+
     def fake_search_web(*_args, **_kwargs):
         return []
 
+    def fake_search_playlists(query: str, *, limit: int = 5, market: str = "US") -> list[dict]:
+        return [
+            {
+                "id": f"playlist-{query[:8]}",
+                "name": f"{query} playlist",
+                "external_urls": {"spotify": "https://open.spotify.com/playlist/current"},
+            }
+        ]
+
+    def fake_get_playlist_tracks(_playlist_id: str, *, market: str = "US", limit: int = 30) -> list[dict]:
+        style_key = _playlist_id.removeprefix("playlist-").strip() or "current"
+        return [
+            {
+                "id": f"track-current-{style_key}",
+                "name": f"Current Pulse {style_key}",
+                "popularity": 81,
+                "external_urls": {"spotify": f"https://open.spotify.com/track/current-{style_key}"},
+                "artists": [{"name": f"New Dance Artist {style_key}"}],
+                "album": {"name": "Current Pulse", "release_date": f"{current_year}-04-01", "images": []},
+            },
+            {
+                "id": "track-old-1",
+                "name": "Old Classic",
+                "popularity": 99,
+                "external_urls": {"spotify": "https://open.spotify.com/track/old-1"},
+                "artists": [{"name": "Classic Artist"}],
+                "album": {"name": "Old Classic", "release_date": "2001-01-01", "images": []},
+            },
+        ]
+
     monkeypatch.setattr("src.music.music_recommendation_planner.search_web", fake_search_web)
+    monkeypatch.setattr("src.integrations.spotify_client.spotify_credentials_ready", lambda: True)
+    monkeypatch.setattr("src.integrations.spotify_client.search_playlists", fake_search_playlists)
+    monkeypatch.setattr("src.integrations.spotify_client.get_playlist_tracks", fake_get_playlist_tracks)
+    monkeypatch.setattr("src.integrations.spotify_client.search_items", lambda *_args, **_kwargs: {"tracks": {"items": []}})
 
     query = "recommend me some popular dance music recently"
     understanding = understand_query(query)
@@ -124,11 +162,30 @@ def test_recent_dance_music_plan_falls_back_to_concrete_representative_tracks(mo
 
     assert plan.question_type == "trending_tracks"
     assert plan.genre_hint == "electronic dance music"
-    assert plan.confidence == "PARTIAL"
+    assert plan.confidence == "CONFIDENT"
     assert plan.candidate_tracks
-    assert plan.candidate_tracks[0].source_type == "curated"
+    assert plan.candidate_tracks[0].source_type == "spotify_fallback"
+    assert plan.candidate_tracks[0].style_hint
+    assert all("Old Classic" != track.title for track in plan.candidate_tracks)
+    assert len({track.style_hint for track in plan.candidate_tracks}) >= 2
     assert plan.uncertainty_note is not None
-    assert "rather than verified current chart hits" in plan.uncertainty_note
+    assert "current" in plan.uncertainty_note.lower()
+
+
+def test_recent_dance_music_plan_does_not_use_old_curated_tracks_without_live_sources(monkeypatch) -> None:
+    # If live current sources are unavailable, SonicMind should say so instead of recommending old classics as recent hits.
+    monkeypatch.setattr("src.music.music_recommendation_planner.search_web", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr("src.integrations.spotify_client.spotify_credentials_ready", lambda: False)
+
+    query = "recommend me some popular dance music recently"
+    understanding = understand_query(query)
+    plan = build_music_recommendation_plan(query, understanding, evidence=[])
+
+    assert plan.question_type == "trending_tracks"
+    assert plan.candidate_tracks == []
+    assert plan.confidence == "UNCERTAIN"
+    assert plan.uncertainty_note is not None
+    assert "current chart/playlist search" in plan.uncertainty_note.lower()
 
 
 def test_spotify_track_embed_url_formatting() -> None:

@@ -6,3 +6,4 @@ uvicorn[standard]>=0.30,<1
 python-dotenv>=1,<2
 psycopg[binary]>=3.2,<4
 psutil>=5.9,<8
+stripe>=12,<14

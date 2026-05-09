@@ -147,8 +147,9 @@ def build_synthesis_prompt(
         plan = music_routing.recommendation_plan
         for idx, track in enumerate(plan.candidate_tracks[:8], start=1):
             sources = ", ".join(track.source_names[:3]) or track.source_type
+            style = f" | style={track.style_hint}" if track.style_hint else ""
             track_lines.append(
-                f"{idx}. {track.artist} - {track.title} | score={track.score:.2f} | "
+                f"{idx}. {track.artist} - {track.title}{style} | score={track.score:.2f} | "
                 f"sources={sources} | reason={track.reason}"
             )
         card_lines = []
@@ -295,6 +296,15 @@ def _uses_representative_fallback(music_routing: MusicRoutingResult) -> bool:
     return any("representative fallback" in track.reason.lower() for track in plan.candidate_tracks)
 
 
+def _group_track_candidates_by_style(track_candidates: list) -> list[tuple[str, list]]:
+    # Recent broad recommendations should read like a mini chart roundup across scenes.
+    groups: dict[str, list] = {}
+    for track in track_candidates:
+        style = track.style_hint or "Other current picks"
+        groups.setdefault(style, []).append(track)
+    return [(style, items) for style, items in groups.items()]
+
+
 def _structured_music_answer(query: str, music_routing: MusicRoutingResult) -> str:
     # Fallback answer keeps text output aligned with the same music candidates used for Spotify cards.
     use_chinese = bool(re.search(r"[\u4e00-\u9fff]", query))
@@ -331,6 +341,29 @@ def _structured_music_answer(query: str, music_routing: MusicRoutingResult) -> s
     track_candidates = music_routing.recommendation_plan.candidate_tracks[:6]
     representative_fallback = _uses_representative_fallback(music_routing)
     if track_candidates:
+        if music_routing.recommendation_plan.question_type == "trending_tracks" and not representative_fallback:
+            grouped = _group_track_candidates_by_style(track_candidates)
+            if use_chinese:
+                group_sentences = []
+                for style, tracks in grouped:
+                    names = "、".join(f"{track.artist} - {track.title}" for track in tracks[:3])
+                    group_sentences.append(f"{style}：{names}")
+                return (
+                    f"我会把 {understanding.genre_hint or '最近热门电子/舞曲'} 按不同风格来推荐："
+                    + "；".join(group_sentences)
+                    + "。这些候选来自当前榜单/歌单搜索与 Spotify 近期目录信号，避免把经典老歌当成 recent hits。"
+                )
+
+            group_sentences = []
+            for style, tracks in grouped:
+                names = ", ".join(f"{track.artist} - {track.title}" for track in tracks[:3])
+                group_sentences.append(f"{style}: {names}")
+            return (
+                f"For recent popular {understanding.genre_hint or 'electronic/dance music'}, I would group the strongest current picks by style: "
+                + "; ".join(group_sentences)
+                + ". These candidates come from current chart/playlist search and recent Spotify catalog signals, not old representative classics."
+            )
+
         names = ", ".join(f"{track.artist} - {track.title}" for track in track_candidates)
         if use_chinese:
             if representative_fallback:
@@ -491,6 +524,16 @@ def synthesize_answer(
     max_answer_tokens: int | None = None,
 ) -> AnswerSynthesis:
     if not evidence:
+        if music_routing and (music_routing.recommendation_plan.candidate_tracks or music_routing.spotify_cards):
+            # Dynamic music discovery can be the only useful evidence for current playlist/chart requests.
+            structured_answer = _structured_music_answer(query, music_routing)
+            if structured_answer:
+                return AnswerSynthesis(
+                    answer=structured_answer,
+                    certainty=music_routing.recommendation_plan.confidence,
+                    uncertainty_note=music_routing.recommendation_plan.uncertainty_note,
+                    citations=[],
+                )
         return AnswerSynthesis(
             answer="I could not find enough reliable evidence to answer that confidently.",
             certainty="UNCERTAIN",

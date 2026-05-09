@@ -24,6 +24,7 @@ DISCOVERY_DOMAINS = {
     "ra.co",
     "rateyourmusic.com",
     "residentadvisor.net",
+    "spotify.com",
     "traxsource.com",
 }
 

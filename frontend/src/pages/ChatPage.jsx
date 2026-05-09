@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge, Button, Col, Container, Form, Modal, Row } from 'react-bootstrap';
 import {
+  createCheckoutSession,
   deleteFavorite,
   deleteHistory,
   fetchAccountStatus,
@@ -128,6 +129,13 @@ export default function ChatPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['favorites'] }),
   });
 
+  const checkoutMutation = useMutation({
+    mutationFn: createCheckoutSession,
+    onSuccess: (data) => {
+      window.location.assign(data.url);
+    },
+  });
+
   // Include the pending question optimistically so users see their submission while retrieval runs.
   const messages = useMemo(() => {
     const flattened = flattenTurns(chatTurns, latestResponse);
@@ -216,6 +224,12 @@ export default function ChatPage() {
     setComingSoonMessage(message || 'Coming Soon: payment integration is not connected in this portfolio build yet.');
   };
 
+  const handleUpgradeFromLimit = () => {
+    // Limit recovery sends Free users to Creator and Creator users to Pro; webhook still grants access.
+    const planCode = usage?.current_plan === 'creator' ? 'pro' : 'creator';
+    checkoutMutation.mutate({ plan_code: planCode });
+  };
+
   return (
     <main className="chat-page">
       <Container fluid="lg">
@@ -234,6 +248,7 @@ export default function ChatPage() {
               <p className="chat-confidence-line">Latest answer confidence: {latestResponse.certainty.toLowerCase()}</p>
             ) : null}
             <ErrorAlert message={mutation.isError ? getApiError(mutation.error, 'The question could not be answered.') : ''} />
+            <ErrorAlert message={checkoutMutation.isError ? getApiError(checkoutMutation.error, 'Could not start checkout.') : ''} />
           </Col>
 
           <Col lg={4}>
@@ -397,7 +412,7 @@ export default function ChatPage() {
           <Button type="button" variant="outline-primary" onClick={() => showComingSoon('Coming Soon: extra question packs are placeholders until payments are added.')}>
             Buy Extra Pack
           </Button>
-          <Button type="button" variant="primary" onClick={() => showComingSoon('Coming Soon: upgrades will connect to Stripe in a later phase.')}>
+          <Button type="button" variant="primary" disabled={checkoutMutation.isPending} onClick={handleUpgradeFromLimit}>
             Upgrade
           </Button>
         </Modal.Footer>

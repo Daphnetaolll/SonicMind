@@ -143,6 +143,39 @@ def search_playlist(query: str, *, market: str = "US") -> dict | None:
     return items[0] if items else None
 
 
+def search_playlists(query: str, *, limit: int = 5, market: str = "US") -> list[dict]:
+    # Current recommendation discovery needs several playlist candidates, not only the first catalog hit.
+    data = search_items(query, ["playlist"], limit=limit, market=market)
+    return [item for item in data.get("playlists", {}).get("items", []) if item]
+
+
+@lru_cache(maxsize=256)
+def _cached_playlist_tracks(playlist_id: str, market: str, limit: int) -> str:
+    # Cache public playlist reads so repeated "recently" questions do not hammer Spotify.
+    data = _api_get(
+        f"/playlists/{playlist_id}/tracks",
+        {
+            "market": market,
+            "limit": str(limit),
+            "fields": (
+                "items(track(id,name,popularity,external_urls,"
+                "artists(name),album(id,name,release_date,images)))"
+            ),
+        },
+    )
+    return json.dumps(data)
+
+
+def get_playlist_tracks(playlist_id: str, *, market: str = "US", limit: int = 30) -> list[dict]:
+    data = json.loads(_cached_playlist_tracks(playlist_id, market, limit))
+    tracks: list[dict] = []
+    for item in data.get("items", []):
+        track = item.get("track")
+        if isinstance(track, dict) and track.get("id"):
+            tracks.append(track)
+    return tracks
+
+
 def get_artist_top_tracks(artist_id: str, *, market: str = "US") -> list[dict]:
     try:
         data = _api_get(f"/artists/{artist_id}/top-tracks", {"market": market})
@@ -374,12 +407,43 @@ def _source_grounded_track_cards_for_genre(
     return cards
 
 
+def _track_card_from_spotify_candidate(candidate: MusicTrackCandidate) -> SpotifyCard | None:
+    # Spotify-derived candidates already carry a playable track URL, so avoid a second noisy catalog search.
+    track_url = next((url for url in candidate.source_urls if "/track/" in url), "")
+    match = re.search(r"/track/([^?/#]+)", track_url)
+    if not match:
+        return None
+    track = {
+        "id": match.group(1),
+        "name": candidate.title,
+        "external_urls": {"spotify": track_url},
+        "artists": [{"name": candidate.artist}],
+        "album": {"name": candidate.style_hint or "Recent Spotify discovery", "images": []},
+    }
+    card = build_track_card(track, source_entity=candidate.artist)
+    if card:
+        card.metadata["recommendation_source"] = candidate.source_type
+        card.metadata["recommendation_artist"] = candidate.artist
+        card.metadata["recommendation_title"] = candidate.title
+        card.metadata["recommendation_style"] = candidate.style_hint or ""
+        card.metadata["recommendation_sources"] = ", ".join(candidate.source_names)
+        card.metadata["recommendation_evidence"] = candidate.evidence
+        card.metadata["recommendation_reason"] = candidate.reason
+        card.metadata["recommendation_score"] = f"{candidate.score:.3f}"
+    return card
+
+
 def _track_card_for_candidate(candidate: MusicTrackCandidate, *, market: str) -> SpotifyCard | None:
     """
     Explanation:
     Dynamic recommendation candidates have already been selected from answer evidence or trusted-source search.
     Spotify is only allowed to resolve the exact title+artist pair into a playable card.
     """
+    if candidate.source_type == "spotify_fallback":
+        direct_card = _track_card_from_spotify_candidate(candidate)
+        if direct_card:
+            return direct_card
+
     track = find_validated_track(candidate.title, candidate.artist, market=market)
     card = build_track_card(track, source_entity=candidate.artist) if track else None
     if not card:
@@ -388,6 +452,7 @@ def _track_card_for_candidate(candidate: MusicTrackCandidate, *, market: str) ->
     card.metadata["recommendation_source"] = candidate.source_type
     card.metadata["recommendation_artist"] = candidate.artist
     card.metadata["recommendation_title"] = candidate.title
+    card.metadata["recommendation_style"] = candidate.style_hint or ""
     card.metadata["recommendation_sources"] = ", ".join(candidate.source_names)
     card.metadata["recommendation_evidence"] = candidate.evidence
     card.metadata["recommendation_reason"] = candidate.reason

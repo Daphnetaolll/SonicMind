@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 
 from src.evidence import EvidenceAssessment, EvidenceItem
 from src.generator import LLMConfig, synthesize_answer
@@ -16,7 +17,34 @@ from src.music.schemas import (
 
 def test_synthesis_replaces_generic_recent_dance_answer_with_track_candidates(monkeypatch) -> None:
     # Recommendation text should stay aligned with the structured track plan passed to Spotify.
+    current_year = datetime.now().year
+
     monkeypatch.setattr("src.music.music_recommendation_planner.search_web", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr("src.integrations.spotify_client.spotify_credentials_ready", lambda: True)
+    monkeypatch.setattr(
+        "src.integrations.spotify_client.search_playlists",
+        lambda query, limit=5, market="US": [
+            {
+                "id": "playlist-current",
+                "name": "Current dance playlist",
+                "external_urls": {"spotify": "https://open.spotify.com/playlist/current"},
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        "src.integrations.spotify_client.get_playlist_tracks",
+        lambda *_args, **_kwargs: [
+            {
+                "id": "track-current-1",
+                "name": "New Season",
+                "popularity": 82,
+                "external_urls": {"spotify": "https://open.spotify.com/track/current-1"},
+                "artists": [{"name": "Current Dance Artist"}],
+                "album": {"name": "New Season", "release_date": f"{current_year}-03-01", "images": []},
+            }
+        ],
+    )
+    monkeypatch.setattr("src.integrations.spotify_client.search_items", lambda *_args, **_kwargs: {"tracks": {"items": []}})
 
     def fake_call_chat_completion(**_kwargs):
         return json.dumps(
@@ -63,8 +91,8 @@ def test_synthesis_replaces_generic_recent_dance_answer_with_track_candidates(mo
         music_routing=music_routing,
     )
 
-    assert "Daft Punk - One More Time" in synthesis.answer
-    assert "source-grounded representative picks" in synthesis.answer
+    assert "Current Dance Artist - New Season" in synthesis.answer
+    assert "current picks by style" in synthesis.answer
     assert "house music is a prominent genre" not in synthesis.answer
     assert synthesis.certainty == "PARTIAL"
 

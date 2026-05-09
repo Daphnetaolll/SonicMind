@@ -1,6 +1,6 @@
 # SonicMind Pricing And Usage Plan
 
-This document describes the current MVP pricing, usage, and plan-feature system. It is intentionally payment-provider-free: Stripe is not integrated yet, and all upgrade / buy buttons are placeholders.
+This document describes the current MVP pricing, usage, and plan-feature system. Creator and Pro subscriptions can be powered by Stripe Checkout + Billing; extra-pack purchases remain placeholders.
 
 ## Plan Table
 
@@ -17,7 +17,7 @@ This document describes the current MVP pricing, usage, and plan-feature system.
 | Extra 50 | $2.99 | 50 questions | 12 months |
 | Extra 100 | $4.99 | 100 questions | 12 months |
 
-Extra credits are used only after the user's plan quota is exhausted. In this MVP, credits are represented by local `credit_transactions` rows; real purchases are not available yet.
+Extra credits are used only after the user's plan quota is exhausted. In this MVP, credits are represented by local `credit_transactions` rows; real extra-pack purchases are not available yet.
 
 ## Usage Rules
 
@@ -49,7 +49,8 @@ The preferred future billing model can keep these tables and add Stripe customer
 - `/chat` is protected and redirects logged-out users to `/login`.
 - Chat displays current plan, remaining quota, extra credits, and answer certainty.
 - Sources, settings, saved history, and favorites are foldable so the page stays compact.
-- Upgrade and extra-pack buttons show a Coming Soon modal.
+- Creator and Pro upgrade buttons start Stripe Checkout when billing env vars are configured.
+- Extra-pack buttons show a Coming Soon modal.
 - Spotify recommendations appear only when the backend marks the question as music-related.
 
 ## Backend Enforcement
@@ -57,7 +58,7 @@ The preferred future billing model can keep these tables and add Stripe customer
 The backend plan config lives in `backend/config/plans.py`. `src/services/quota_service.py` evaluates:
 
 - Free daily usage against a UTC day window.
-- Creator/Pro usage against the stored billing period.
+- Creator/Pro usage against Stripe webhook-backed subscription periods in production.
 - Extra credits after plan quota is exhausted.
 - Plan-specific RAG Top-K, max answer tokens, and Spotify card limits.
 
@@ -77,19 +78,29 @@ Seeded users:
 - `creatortest@example.com` on Student / Creator
 - `protest@example.com` on Pro
 
-## Future Stripe Integration Steps
+## Stripe Subscription Integration
 
-1. Add Stripe product and price ids for Creator, Pro, and extra packs.
-2. Create backend checkout-session endpoints.
-3. Store Stripe customer and subscription ids in `subscriptions`.
-4. Process Stripe webhooks into `billing_events`.
-5. Update `users.plan`, `subscription_status`, and billing period dates from verified webhooks only.
-6. Create credit transactions only after verified extra-pack payment events.
-7. Add cancellation, failed-payment, and renewal tests.
+The first Stripe version covers only monthly Creator and Pro subscriptions:
+
+1. Backend Checkout Session endpoint creates Stripe-hosted subscription checkout.
+2. Checkout success redirect returns to `/pricing?checkout=success` and does not grant access directly.
+3. Verified Stripe webhooks insert idempotent `billing_events`.
+4. Stripe subscription events upsert `subscriptions` by `provider_subscription_id`.
+5. Verified subscription periods update `users.plan`, `subscription_status`, and billing period dates.
+6. Production quota falls back to Free when no current Stripe-backed subscription row exists.
+
+Detailed setup is in [STRIPE_BILLING.md](STRIPE_BILLING.md).
+
+## Future Billing Steps
+
+1. Add extra-pack one-time Checkout Sessions.
+2. Create credit transactions only after verified extra-pack payment events.
+3. Tighten FIFO credit consumption for purchased packs.
+4. Add deeper cancellation, failed-payment, downgrade, and renewal tests.
 
 ## Remaining Risks
 
-- Monthly periods are rolling 30-day local periods until Stripe supplies real billing-cycle dates.
+- Monthly demo periods are rolling 30-day local periods only outside production.
 - Extra-credit usage does not yet perform full FIFO expiration accounting.
 - Saved history and favorites are intentionally simple lists.
 - The frontend has a build check, but no browser automation coverage for the new modal flows yet.

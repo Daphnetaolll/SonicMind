@@ -39,6 +39,7 @@ SCHEMA_STATEMENTS = [
         provider TEXT,
         provider_customer_id TEXT,
         provider_subscription_id TEXT,
+        provider_price_id TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
@@ -164,6 +165,10 @@ SCHEMA_STATEMENTS = [
     ADD COLUMN IF NOT EXISTS extra_question_credits INTEGER NOT NULL DEFAULT 0
     """,
     """
+    ALTER TABLE subscriptions
+    ADD COLUMN IF NOT EXISTS provider_price_id TEXT
+    """,
+    """
     ALTER TABLE question_logs
     DROP CONSTRAINT IF EXISTS question_logs_charge_type_check
     """,
@@ -198,6 +203,11 @@ SCHEMA_STATEMENTS = [
     """
     CREATE INDEX IF NOT EXISTS idx_subscriptions_status_period
     ON subscriptions (status, current_period_end)
+    """,
+    """
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_provider_subscription
+    ON subscriptions (provider, provider_subscription_id)
+    WHERE provider_subscription_id IS NOT NULL
     """,
     """
     CREATE INDEX IF NOT EXISTS idx_question_logs_user_id_created_at

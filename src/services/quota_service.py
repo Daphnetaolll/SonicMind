@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
@@ -11,7 +12,7 @@ from backend.config.plans import (
     get_plan,
 )
 from src.db import connect_db
-from src.repositories import credit_repository, usage_repository, user_repository
+from src.repositories import credit_repository, subscription_repository, usage_repository, user_repository
 
 
 PERIOD_LENGTH_DAYS = 30
@@ -51,14 +52,23 @@ def _free_day_window(now: datetime) -> tuple[datetime, datetime]:
     return start, start + timedelta(days=1)
 
 
-def _monthly_window(row: dict, plan: PlanConfig, now: datetime) -> tuple[datetime, datetime, bool]:
+def _demo_paid_rollover_enabled() -> bool:
+    # Demo rollover is allowed for local seed users, but production access must come from Stripe webhooks.
+    app_env = os.getenv("APP_ENV", "development").strip().lower()
+    configured = os.getenv("SONICMIND_ENABLE_DEMO_BILLING_ROLLOVER", "true").strip().lower()
+    return app_env != "production" and configured in {"1", "true", "yes", "on"}
+
+
+def _monthly_window(row: dict, plan: PlanConfig, now: datetime) -> tuple[datetime | None, datetime | None, bool]:
     """
-    Paid plans use the stored billing window. Until Stripe exists, expired/missing
-    local periods renew into a rolling 30-day development window.
+    Paid plans use the stored billing window. Local demo users may roll forward only
+    outside production; Stripe-backed users rely on webhook-supplied periods.
     """
     start = row.get("billing_period_start")
     end = row.get("billing_period_end")
     if start and end and end > now:
+        return start, end, False
+    if not _demo_paid_rollover_enabled():
         return start, end, False
 
     new_start = now
@@ -82,6 +92,7 @@ def _base_status(
     remaining: int,
     period_start: object | None,
     period_end: object | None,
+    subscription_id: str | None,
     remaining_daily_questions: int | None,
     remaining_monthly_questions: int | None,
     extra_question_credits: int,
@@ -91,7 +102,7 @@ def _base_status(
         allowed=allowed,
         charge_type=charge_type,
         remaining=remaining,
-        subscription_id=None,
+        subscription_id=subscription_id,
         period_start=period_start,
         period_end=period_end,
         current_plan=plan.code,
@@ -110,6 +121,51 @@ def _base_status(
     )
 
 
+def _free_quota_status(
+    conn: object,
+    *,
+    user_id: str,
+    plan: PlanConfig,
+    extra_credits: int,
+    now: datetime,
+) -> QuotaStatus:
+    # Free access is always daily and never depends on provider subscription records.
+    period_start, period_end = _free_day_window(now)
+    used = usage_repository.count_charged_questions(
+        conn,
+        user_id=user_id,
+        period_start=period_start,
+        period_end=period_end,
+        charge_types=("free",),
+    )
+    remaining_daily = max((plan.daily_limit or 0) - used, 0)
+    if remaining_daily > 0:
+        return _base_status(
+            plan=plan,
+            allowed=True,
+            charge_type="free",
+            remaining=remaining_daily,
+            period_start=period_start,
+            period_end=period_end,
+            subscription_id=None,
+            remaining_daily_questions=remaining_daily,
+            remaining_monthly_questions=None,
+            extra_question_credits=extra_credits,
+        )
+    return _base_status(
+        plan=plan,
+        allowed=extra_credits > 0,
+        charge_type="extra_credit" if extra_credits > 0 else "none",
+        remaining=extra_credits,
+        period_start=period_start,
+        period_end=period_end,
+        subscription_id=None,
+        remaining_daily_questions=0,
+        remaining_monthly_questions=None,
+        extra_question_credits=extra_credits,
+    )
+
+
 def get_quota_status(user_id: str) -> QuotaStatus:
     # Evaluate quota from durable backend records; frontend counters are never trusted.
     now = _utc_now()
@@ -123,6 +179,7 @@ def get_quota_status(user_id: str) -> QuotaStatus:
                 remaining=0,
                 period_start=None,
                 period_end=None,
+                subscription_id=None,
                 remaining_daily_questions=0,
                 remaining_monthly_questions=None,
                 extra_question_credits=0,
@@ -137,48 +194,49 @@ def get_quota_status(user_id: str) -> QuotaStatus:
         )
 
         if plan.daily_limit is not None:
-            period_start, period_end = _free_day_window(now)
-            used = usage_repository.count_charged_questions(
-                conn,
-                user_id=user_id,
-                period_start=period_start,
-                period_end=period_end,
-                charge_types=("free",),
-            )
-            remaining_daily = max(plan.daily_limit - used, 0)
-            if remaining_daily > 0:
-                conn.commit()
-                return _base_status(
-                    plan=plan,
-                    allowed=True,
-                    charge_type="free",
-                    remaining=remaining_daily,
-                    period_start=period_start,
-                    period_end=period_end,
-                    remaining_daily_questions=remaining_daily,
-                    remaining_monthly_questions=None,
-                    extra_question_credits=extra_credits,
-                )
+            status = _free_quota_status(conn, user_id=user_id, plan=plan, extra_credits=extra_credits, now=now)
             conn.commit()
-            return _base_status(
-                plan=plan,
-                allowed=extra_credits > 0,
-                charge_type="extra_credit" if extra_credits > 0 else "none",
-                remaining=extra_credits,
-                period_start=period_start,
-                period_end=period_end,
-                remaining_daily_questions=0,
-                remaining_monthly_questions=None,
-                extra_question_credits=extra_credits,
-            )
+            return status
 
-        period_start, period_end, needs_period_update = _monthly_window(row, plan, now)
-        if needs_period_update:
+        provider_subscription = subscription_repository.get_current_provider_subscription(
+            conn,
+            user_id=user_id,
+            provider="stripe",
+        )
+        subscription_id = provider_subscription["id"] if provider_subscription else None
+        if provider_subscription:
+            plan = get_plan(provider_subscription["plan_code"])
+            period_start = provider_subscription.get("current_period_start")
+            period_end = provider_subscription.get("current_period_end")
+        else:
+            if not _demo_paid_rollover_enabled():
+                free_plan = get_plan("free")
+                status = _free_quota_status(conn, user_id=user_id, plan=free_plan, extra_credits=extra_credits, now=now)
+                conn.commit()
+                return status
+            period_start, period_end, needs_period_update = _monthly_window(row, plan, now)
+            if needs_period_update:
+                user_repository.update_user_plan(
+                    conn,
+                    user_id=user_id,
+                    plan=plan.code,
+                    subscription_status=row.get("subscription_status") or "active",
+                    billing_period_start=period_start,
+                    billing_period_end=period_end,
+                )
+
+        if not period_start or not period_end or period_end <= now:
+            free_plan = get_plan("free")
+            status = _free_quota_status(conn, user_id=user_id, plan=free_plan, extra_credits=extra_credits, now=now)
+            conn.commit()
+            return status
+
+        if provider_subscription:
             user_repository.update_user_plan(
                 conn,
                 user_id=user_id,
-                plan=plan.code,
-                subscription_status=row.get("subscription_status") or "active",
+                plan=provider_subscription["plan_code"],
+                subscription_status=provider_subscription["status"],
                 billing_period_start=period_start,
                 billing_period_end=period_end,
             )
@@ -202,6 +260,7 @@ def get_quota_status(user_id: str) -> QuotaStatus:
             remaining=remaining_monthly,
             period_start=period_start,
             period_end=period_end,
+            subscription_id=subscription_id,
             remaining_daily_questions=None,
             remaining_monthly_questions=remaining_monthly,
             extra_question_credits=extra_credits,
@@ -214,6 +273,7 @@ def get_quota_status(user_id: str) -> QuotaStatus:
         remaining=extra_credits,
         period_start=period_start,
         period_end=period_end,
+        subscription_id=subscription_id,
         remaining_daily_questions=None,
         remaining_monthly_questions=0,
         extra_question_credits=extra_credits,

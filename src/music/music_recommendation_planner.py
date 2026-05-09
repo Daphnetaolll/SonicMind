@@ -37,6 +37,38 @@ TRENDING_MARKERS = (
     "最火",
     "热门",
 )
+RECENT_RELEASE_YEAR_WINDOW = 1
+
+
+def _style_buckets_for_genre(genre_hint: str | None) -> list[tuple[str, tuple[str, ...]]]:
+    # Broad "dance music" requests need coverage across scenes instead of one generic EDM bucket.
+    genre = (genre_hint or "electronic music").lower()
+    if any(marker in genre for marker in ("dance", "edm", "electronic")):
+        return [
+            ("Mainstream dance / electronic", ("dance electronic", "edm", "dance pop")),
+            ("House / tech house", ("house", "tech house", "afro house")),
+            ("Techno / melodic techno", ("techno", "melodic techno")),
+            ("Bass / DnB / trap", ("drum and bass", "dubstep", "trap")),
+        ]
+    if "house" in genre:
+        return [
+            ("House / tech house", ("house", "tech house")),
+            ("Deep / melodic house", ("deep house", "melodic house")),
+            ("Afro / organic house", ("afro house", "organic house")),
+        ]
+    if "techno" in genre:
+        return [
+            ("Peak-time techno", ("techno", "peak time techno")),
+            ("Melodic techno", ("melodic techno",)),
+            ("Hard / industrial techno", ("hard techno", "industrial techno")),
+        ]
+    if "drum" in genre and "bass" in genre:
+        return [
+            ("Dancefloor DnB", ("drum and bass", "dancefloor drum and bass")),
+            ("Liquid DnB", ("liquid drum and bass",)),
+            ("Jungle / breakbeat", ("jungle", "breakbeat")),
+        ]
+    return [(genre_hint or "Electronic music", (genre_hint or "electronic music",))]
 
 
 def _lower(value: str) -> str:
@@ -92,12 +124,22 @@ def _source_queries(query: str, understanding: QueryUnderstandingResult, questio
     year = datetime.now().year
 
     if question_type == "trending_tracks":
-        return [
-            f'"{genre}" hottest tracks {year}',
-            f'"{genre}" top tracks {year} chart',
-            f'"{genre}" new tracks {year} Beatport Traxsource',
-            f'"{genre}" best new tracks {year} DJ Mag Mixmag',
-        ]
+        queries: list[str] = []
+        for _style_label, terms in _style_buckets_for_genre(genre):
+            style = terms[0]
+            queries.extend(
+                [
+                    f'"{style}" top tracks {year} chart Beatport Spotify playlist',
+                    f'"{style}" best new tracks {year} Mixmag DJ Mag playlist',
+                ]
+            )
+        queries.extend(
+            [
+                f'"{genre}" top tracks {year} chart',
+                f'"{genre}" new tracks {year} Beatport Traxsource',
+            ]
+        )
+        return queries[:10]
     if question_type == "track_recommendation":
         return [
             f'"{genre}" best tracks artists',
@@ -117,6 +159,14 @@ def _source_queries(query: str, understanding: QueryUnderstandingResult, questio
             f'"{genre}" essential tracks artists',
         ]
     return []
+
+
+def _style_hint_for_source_query(source_query: str, genre_hint: str | None) -> str | None:
+    query = source_query.lower()
+    for style_label, terms in _style_buckets_for_genre(genre_hint):
+        if any(term in query for term in terms):
+            return style_label
+    return None
 
 
 def _hit_from_evidence(item: EvidenceItem) -> SearchHit:
@@ -152,6 +202,7 @@ def _to_plan_candidate(
     source_type: str,
     question_type: RecommendationQuestionType,
     evidence: str,
+    style_hint: str | None = None,
 ) -> MusicTrackCandidate:
     source_names = sorted(candidate.sources)
     return MusicTrackCandidate(
@@ -159,6 +210,7 @@ def _to_plan_candidate(
         artist=candidate.artist,
         score=round(candidate.score + _source_bonus(candidate.sources, question_type), 3),
         source_type=source_type,  # type: ignore[arg-type]
+        style_hint=style_hint,
         source_names=source_names,
         source_urls=sorted(candidate.urls)[:3],
         evidence=evidence,
@@ -187,6 +239,129 @@ def _merge_candidates(candidates: list[MusicTrackCandidate], max_candidates: int
     return ranked[:max_candidates]
 
 
+def _track_release_year(track: dict) -> int | None:
+    release_date = str((track.get("album") or {}).get("release_date") or "")
+    match = re.match(r"^(\d{4})", release_date)
+    return int(match.group(1)) if match else None
+
+
+def _primary_artist(track: dict) -> str:
+    artists = [artist.get("name", "") for artist in track.get("artists", []) if artist.get("name")]
+    return artists[0] if artists else ""
+
+
+def _spotify_track_candidate(
+    track: dict,
+    *,
+    style_hint: str,
+    source_name: str,
+    source_url: str | None = None,
+) -> MusicTrackCandidate | None:
+    # Keep "recently" fallback honest by rejecting old catalog tracks before they reach Spotify cards.
+    title = str(track.get("name") or "").strip()
+    artist = _primary_artist(track).strip()
+    if not title or not artist:
+        return None
+
+    current_year = datetime.now().year
+    release_year = _track_release_year(track)
+    if release_year is not None and release_year < current_year - RECENT_RELEASE_YEAR_WINDOW:
+        return None
+
+    popularity = int(track.get("popularity") or 0)
+    recency_bonus = 0.12 if release_year == current_year else 0.04 if release_year else 0.0
+    track_url = track.get("external_urls", {}).get("spotify")
+    source_urls = [url for url in (track_url, source_url) if url]
+    release_note = f" released in {release_year}" if release_year else ""
+    return MusicTrackCandidate(
+        title=title,
+        artist=artist,
+        score=round(0.48 + min(popularity, 100) / 100 * 0.35 + recency_bonus, 3),
+        source_type="spotify_fallback",
+        style_hint=style_hint,
+        source_names=[source_name],
+        source_urls=list(dict.fromkeys(source_urls))[:3],
+        evidence=f"Spotify current catalog/playlist discovery found {artist} - {title}{release_note}.",
+        reason="Selected from recent Spotify playlist/search discovery after trusted chart search had limited exact track pairs.",
+    )
+
+
+def _current_spotify_candidates(genre_hint: str | None, *, max_candidates: int, market: str = "US") -> list[MusicTrackCandidate]:
+    """
+    Explanation:
+    Live web search can fail or return prose-only chart pages.
+    For explicitly recent/popular questions, Spotify playlist and year-filtered catalog search gives a lightweight
+    current-music fallback without loading local semantic models.
+    """
+    try:
+        from src.integrations.spotify_client import (
+            get_playlist_tracks,
+            search_items,
+            search_playlists,
+            spotify_credentials_ready,
+        )
+    except Exception:
+        return []
+
+    if not spotify_credentials_ready():
+        return []
+
+    current_year = datetime.now().year
+    buckets = _style_buckets_for_genre(genre_hint)
+    per_style_limit = max(1, min(2, max_candidates // max(len(buckets), 1) + 1))
+    selected: list[MusicTrackCandidate] = []
+    overflow: list[MusicTrackCandidate] = []
+
+    for style_label, terms in buckets:
+        style_candidates: list[MusicTrackCandidate] = []
+        primary_term = terms[0]
+        playlist_query = f"{primary_term} hits {current_year}"
+        try:
+            playlists = search_playlists(playlist_query, limit=2, market=market)
+        except Exception:
+            playlists = []
+        for playlist in playlists[:1]:
+            playlist_id = playlist.get("id")
+            if not playlist_id:
+                continue
+            playlist_name = playlist.get("name") or playlist_query
+            playlist_url = playlist.get("external_urls", {}).get("spotify")
+            try:
+                tracks = get_playlist_tracks(playlist_id, market=market, limit=25)
+            except Exception:
+                tracks = []
+            for track in tracks:
+                candidate = _spotify_track_candidate(
+                    track,
+                    style_hint=style_label,
+                    source_name=f"Spotify playlist: {playlist_name}",
+                    source_url=playlist_url,
+                )
+                if candidate:
+                    style_candidates.append(candidate)
+
+        for term in terms[:2]:
+            for search_query in (f'{term} year:{current_year}', f'new {term} {current_year}'):
+                try:
+                    data = search_items(search_query, ["track"], limit=8, market=market)
+                except Exception:
+                    continue
+                for track in data.get("tracks", {}).get("items", []):
+                    candidate = _spotify_track_candidate(
+                        track,
+                        style_hint=style_label,
+                        source_name=f"Spotify Search: {search_query}",
+                    )
+                    if candidate:
+                        style_candidates.append(candidate)
+
+        ranked_style = _merge_candidates(style_candidates, max_candidates)
+        selected.extend(ranked_style[:per_style_limit])
+        overflow.extend(ranked_style[per_style_limit:])
+
+    return _merge_candidates(selected + overflow, max_candidates)
+
+
 def _fallback_representative_candidates(
     genre_hint: str | None,
     *,
@@ -212,6 +387,7 @@ def _fallback_representative_candidates(
                 artist=artist,
                 score=0.35,
                 source_type=source_type,  # type: ignore[arg-type]
+                style_hint=None,
                 source_names=source_names,
                 source_urls=list(item.get("source_urls", []) or [])[:3],
                 evidence=str(record.get("explanation", "")),
@@ -269,6 +445,7 @@ def build_music_recommendation_plan(
                 source_type="evidence",
                 question_type=question_type,
                 evidence="Extracted from the RAG evidence already used for the answer.",
+                style_hint=None,
             )
         )
 
@@ -282,6 +459,7 @@ def build_music_recommendation_plan(
             except (RuntimeError, ValueError):
                 hits = []
             searched = searched or bool(hits)
+            style_hint = _style_hint_for_source_query(source_query, understanding.genre_hint)
             for candidate in extract_track_candidates_from_hits(hits, _query_genre(understanding)):
                 plan_candidates.append(
                     _to_plan_candidate(
@@ -289,12 +467,19 @@ def build_music_recommendation_plan(
                         source_type="web_search",
                         question_type=question_type,
                         evidence=f"Extracted from trusted-source search query: {source_query}",
+                        style_hint=style_hint,
                     )
                 )
 
     ranked = _merge_candidates(plan_candidates, max_candidates)
+    if question_type == "trending_tracks" and len(ranked) < max_candidates:
+        ranked = _merge_candidates(
+            ranked + _current_spotify_candidates(understanding.genre_hint, max_candidates=max_candidates),
+            max_candidates,
+        )
+
     fallback_used = False
-    if not ranked:
+    if not ranked and question_type != "trending_tracks":
         ranked = _fallback_representative_candidates(
             understanding.genre_hint,
             max_candidates=max_candidates,
@@ -311,6 +496,15 @@ def build_music_recommendation_plan(
             )
         else:
             uncertainty_note = "Used source-grounded representative tracks because dynamic search found no exact candidates."
+    elif question_type == "trending_tracks" and ranked:
+        uncertainty_note = uncertainty_note or (
+            "Current picks were assembled from trusted chart/playlist search and recent Spotify catalog signals."
+        )
+    elif question_type == "trending_tracks" and not ranked:
+        uncertainty_note = (
+            "Current chart/playlist search did not return verified recent track candidates. "
+            "Configure web search and Spotify credentials for live recent recommendations."
+        )
     return MusicRecommendationPlan(
         question_type=question_type,
         genre_hint=understanding.genre_hint,

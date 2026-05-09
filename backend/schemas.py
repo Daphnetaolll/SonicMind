@@ -104,6 +104,22 @@ class PricingResponse(BaseModel):
     extra_packs: list[ExtraPackResponse]
 
 
+class CheckoutSessionRequest(BaseModel):
+    # Plan code is the only browser-controlled billing input; price ids stay on the backend.
+    plan_code: Literal["creator", "pro"]
+
+
+class BillingUrlResponse(BaseModel):
+    url: str
+
+
+class BillingWebhookResponse(BaseModel):
+    received: bool
+    processed: bool
+    duplicate: bool
+    event_type: str | None = None
+
+
 class ChatTurnRequest(BaseModel):
     user: str
     assistant: str

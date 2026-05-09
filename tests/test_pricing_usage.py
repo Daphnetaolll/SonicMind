@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from backend.config.plans import EXTRA_PACKS, get_plan
 from backend.main import app
 from backend.services.token_service import create_access_token
+from src.services import quota_service
 from src.services.auth_service import AuthUser
 from src.services.quota_service import QuotaStatus
 
@@ -73,3 +74,45 @@ def test_chat_over_limit_blocks_before_answer_service(monkeypatch) -> None:
     assert detail["code"] == "usage_limit_reached"
     assert detail["message"] == get_plan("free").limit_message
     assert detail["usage"]["remaining_daily_questions"] == 0
+
+
+def test_production_paid_plan_without_provider_subscription_falls_back_to_free(monkeypatch) -> None:
+    # Production cannot grant paid access from stale demo user fields without a Stripe subscription row.
+    class FakeConn:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> None:
+            return None
+
+        def commit(self) -> None:
+            return None
+
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("SONICMIND_ENABLE_DEMO_BILLING_ROLLOVER", "false")
+    monkeypatch.setattr(quota_service, "connect_db", lambda: FakeConn())
+    monkeypatch.setattr(
+        quota_service.user_repository,
+        "get_user_by_id",
+        lambda conn, user_id: {
+            "id": user_id,
+            "plan": "creator",
+            "subscription_status": "active",
+            "billing_period_start": None,
+            "billing_period_end": None,
+        },
+    )
+    monkeypatch.setattr(quota_service.credit_repository, "get_active_credit_balance", lambda conn, user_id, now: 0)
+    monkeypatch.setattr(quota_service.user_repository, "update_extra_credit_snapshot", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        quota_service.subscription_repository,
+        "get_current_provider_subscription",
+        lambda conn, user_id, provider: None,
+    )
+    monkeypatch.setattr(quota_service.usage_repository, "count_charged_questions", lambda *args, **kwargs: 0)
+
+    quota = quota_service.get_quota_status("user-prod-stale")
+
+    assert quota.current_plan == "free"
+    assert quota.charge_type == "free"
+    assert quota.subscription_id is None

@@ -122,6 +122,7 @@ class MusicTrackCandidate:
     artist: str
     score: float
     source_type: RecommendationSourceType
+    style_hint: str | None = None
     source_names: list[str] = field(default_factory=list)
     source_urls: list[str] = field(default_factory=list)
     evidence: str = ""
