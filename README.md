@@ -19,6 +19,24 @@ The legacy Streamlit prototype remains in `app.py` for comparison, but the prima
 
 Production runs in lightweight retrieval mode by default so the backend can remain stable on a 2 GB Render web service.
 
+## Public Demo Access
+
+The deployed site is public so instructors and reviewers can test the full application without creating a new account. The following accounts are seeded for demo and evaluation use only:
+
+| Plan | Email | Password |
+| --- | --- | --- |
+| Free | `freetest@example.com` | `Test123456!` |
+| Student / Creator | `creatortest@example.com` | `Test123456!` |
+| Pro | `protest@example.com` | `Test123456!` |
+
+To test the core chat experience:
+
+1. Open [https://sonicmind.onrender.com](https://sonicmind.onrender.com).
+2. Log in with one of the demo accounts above.
+3. Go to the Chat page and ask an electronic-music question, such as `Recommend dark minimal techno for a late-night set`.
+
+Because these credentials are published in a public repository, the accounts should be treated as shared demo accounts only. They should not be used for private data, personal billing information, or production user testing.
+
 ## Project Structure
 
 ```text
@@ -230,6 +248,26 @@ Usage rules:
 Extra packs are displayed as planned products but are not purchasable yet.
 
 ## Stripe Billing
+
+The current billing integration is configured for Stripe test mode. Testing upgrades, downgrades, and cancellations will not charge a real card.
+
+Reviewers can test the subscription flow with Stripe's standard test card:
+
+1. Open [https://sonicmind.onrender.com](https://sonicmind.onrender.com).
+2. Log in with one of the demo accounts listed in [Public Demo Access](#public-demo-access).
+3. Go to the Pricing page.
+4. Click the Creator or Pro upgrade button.
+5. Complete the redirected Stripe Checkout form with these test payment details:
+
+| Field | Test value |
+| --- | --- |
+| Card number | `4242 4242 4242 4242` |
+| Expiration date | Any future date |
+| CVC | `123` |
+| ZIP | `02115` |
+
+6. Click Subscribe or Pay to finish the test checkout.
+7. Return to SonicMind to verify the updated plan, then use the billing portal to test downgrade or cancellation behavior.
 
 SonicMind currently supports:
 
