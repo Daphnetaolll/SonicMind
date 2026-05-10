@@ -1,8 +1,15 @@
 # SonicMind
+**Developer:** Daphne Tao - *DAPHNIII*
 
-SonicMind is a deployed music knowledge and discovery assistant. It combines a Vite + React frontend, a FastAPI backend, PostgreSQL-backed accounts and quota, a music RAG pipeline, trusted-source retrieval, optional Spotify display cards, and Stripe subscription billing.
+SonicMind is a deployed electronic music knowledge and discovery assistant that helps users explore artists, genres, tracks, labels, and music culture through natural language.
 
-The legacy Streamlit app remains in [app.py](app.py) for comparison, but the primary application is now the React + FastAPI deployment.
+The project is built around a simple gap in today’s music discovery experience: people often describe music through abstract feelings, textures, scenes, or references — for example, “dark futuristic club music,” or “tracks that feel like late-night driving,” Traditional music platforms are strong at catalog search, but they are not designed to understand these descriptive, contextual, or research queries.
+
+SonicMind fills this gap by combining music knowledge retrieval with Spotify discovery. Users can ask open-ended questions about electronic music, learn about artists or genres, and receive relevant Spotify track recommendations based on the meaning of their question. Instead of searching for an artist’s background and then manually looking up their most popular tracks, SonicMind brings knowledge, context, and playable discovery into a single interface.
+
+The current version focuses primarily on electronic music knowledge and discovery. It combines a Vite + React frontend, a FastAPI backend, PostgreSQL-backed user accounts and quota management, a music RAG pipeline, trusted-source retrieval, optional Spotify display cards, and Stripe subscription billing.
+
+The legacy Streamlit prototype remains in `app.py` for comparison, but the primary application is now the React + FastAPI deployment.
 
 ## Deployed URLs
 
@@ -388,6 +395,7 @@ dist
 
 I keep a daily development log to document design decisions, implementation progress, debugging process, and next steps.
 
+- [2026-04-26](docs/devlog/2026-04-26.md)
 - [2026-04-27](docs/devlog/2026-04-27.md)
 - [2026-05-04](docs/devlog/2026-05-04.md)
 - [2026-05-05](docs/devlog/2026-05-05.md)
